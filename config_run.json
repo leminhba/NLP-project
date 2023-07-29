@@ -1,0 +1,21 @@
+{
+  "config": {
+    "format_session_id": "%Y%m%d_%H-%M-%S",
+    "output_table_name": "output_predict_ai",
+    "input_table_name": "temp_output",
+    "uri_database": "mssql+pyodbc://@./AI-data?charset=utf8mb4&driver=ODBC Driver 17 for SQL Server",
+    "gsdg_database": "mssql+pyodbc://@./GSDGNganh?charset=utf8mb4&driver=ODBC Driver 17 for SQL Server",
+    "local_server_name": "127.1.1.1:8000",
+    "test_db": "DRIVER={ODBC Driver 17 for SQL Server};SERVER=.;DATABASE=AI-data;Trusted_Connection=yes;",
+    "test_db2": "DRIVER={ODBC Driver 17 for SQL Server};SERVER=.;DATABASE=GSDGNganh;Trusted_Connection=yes;",
+    "batch_size": "100",
+        "api_get_keywords": "https://giamsatdanhgia.mard.gov.vn/api/KeyWord",
+
+    "api_get_token": "https://giamsatdanhgia.mard.gov.vn/token",
+    "username_get_token": "api",
+    "password_get_token": "123456",
+    "output_table_name_temp": "temp_output"
+  }
+}
+
+
