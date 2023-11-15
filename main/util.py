@@ -10,6 +10,7 @@ import textract
 import codecs
 import platform
 import camelot
+import pythoncom
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.converter import TextConverter
 from pdfminer.layout import LAParams
@@ -123,7 +124,11 @@ def read_doc_file(path_file):
         import win32com.client as win32
         docx_file_path = os.path.splitext(os.path.abspath(path_file))[0] + ".docx"
         if not os.path.exists(docx_file_path):
-            word = win32.gencache.EnsureDispatch('Word.Application')
+            # Initialize
+            pythoncom.CoInitialize()
+
+            #word = win32.gencache.EnsureDispatch('Word.Application')
+            word = dispatch('Word.Application')
             doc = word.Documents.Open(path_file)
             doc.Activate()
             new_file_abs = os.path.splitext(os.path.abspath(docx_file_path))[0] + ".docx"
@@ -165,6 +170,26 @@ def read_docx_file(path_file):
     result = '\n'.join([para.text for para in paras])
     return result
 
+
+def dispatch(app_name:str):
+    try:
+        from win32com import client
+        app = client.gencache.EnsureDispatch(app_name)
+    except AttributeError:
+        # Corner case dependencies.
+        import os
+        import re
+        import sys
+        import shutil
+        # Remove cache and try again.
+        MODULE_LIST = [m.__name__ for m in sys.modules.values()]
+        for module in MODULE_LIST:
+            if re.match(r'win32com\.gen_py\..+', module):
+                del sys.modules[module]
+        shutil.rmtree(os.path.join(os.environ.get('LOCALAPPDATA'), 'Temp', 'gen_py'))
+        from win32com import client
+        app = client.gencache.EnsureDispatch(app_name)
+    return app
 
 # def read_pdf_file(path_file):
 #     text = textract.process(path_file, method='pdfminer')

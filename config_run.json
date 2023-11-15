@@ -14,7 +14,8 @@
     "api_get_token": "https://giamsatdanhgia.mard.gov.vn/token",
     "username_get_token": "api",
     "password_get_token": "123456",
-    "output_table_name_temp": "temp_output"
+    "output_table_name_temp": "temp_output",
+    "source_table_name": "source"
   }
 }
 
