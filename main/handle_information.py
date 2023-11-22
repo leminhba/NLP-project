@@ -294,20 +294,22 @@ def classify_handle_2section(id_file, filename, report_unit, area_id, year, cont
         for section in sections:
             section_head = section.splitlines()[0]
             if any([x in section_head.lower() for x in matches]):  # chỉ lấy mục thỏa mãn điều kiện
-                print([section_head])
-                list_result.append({'id_file': id_file,
-                                    'filename': filename,
-                                    'report_unit': report_unit,
-                                    'area_id': area_id,
-                                    'year': year,
-                                    'topic_1': '',
-                                    'keywords_topic_1': '',
-                                    'topic_2': '',
-                                    'keywords_topic_2': '',
-                                    'sentence_contain_keywords': section_roman_head + " - " + section_head,
-                                    'paragraph_contain_keywords': section,
-                                    'session_id': session_id
-                                    })
+                # nếu chiều dài chuỗi nhỏ hơn 50 thì mới lấy
+                if len(section_head) < 50:
+                    print([section_head])
+                    list_result.append({'id_file': id_file,
+                                        'filename': filename,
+                                        'report_unit': report_unit,
+                                        'area_id': area_id,
+                                        'year': year,
+                                        'topic_1': '',
+                                        'keywords_topic_1': '',
+                                        'topic_2': '',
+                                        'keywords_topic_2': '',
+                                        'sentence_contain_keywords': section_roman_head + " - " + section_head,
+                                        'paragraph_contain_keywords': section,
+                                        'session_id': session_id
+                                        })
     return list_result
 
 
