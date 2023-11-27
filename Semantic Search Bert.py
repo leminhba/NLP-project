@@ -37,12 +37,22 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 # Calculate cosine similarity between the user query and all documents
 similarities = cosine_similarity(user_query_embedding, document_embeddings)
-df = pd.DataFrame(similarities.T, columns=['similarities'])
+df = pd.DataFrame(similarities.T, columns=['score'])
 df = df.join(df_extract['sentence_contain_keywords'])
-newdf = df.sort_values(by=['similarities'], ascending=False)
+# cắt các dòng có cột nhỏ hơn 0.5
+df = df[df['score'] > 0.5]
+# sắp xếp theo score giảm dần
+df = df.sort_values(by=['score'], ascending=False)
+# reset index sau khi sắp xếp để có giá trị index liên tục
+df = df.reset_index(drop=True)
+
+# Print the document and the similarity score
+for index, row in df.iterrows():
+    print("Document: {}, Similarity score: {}".format(row['sentence_contain_keywords'], row['score']))
+
 
 # Find the index of the most similar document
-most_similar_document_index = similarities.argmax()
-most_similar_document = df_extract['sentence_contain_keywords'][most_similar_document_index]
-print("Most similar document:", most_similar_document)
+#most_similar_document_index = similarities.argmax()
+#most_similar_document = df_extract['sentence_contain_keywords'][most_similar_document_index]
+#print("Most similar document:", most_similar_document)
 

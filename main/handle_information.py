@@ -295,7 +295,7 @@ def classify_handle_2section(id_file, filename, report_unit, area_id, year, cont
             section_head = section.splitlines()[0]
             if any([x in section_head.lower() for x in matches]):  # chỉ lấy mục thỏa mãn điều kiện
                 # nếu chiều dài chuỗi nhỏ hơn 50 thì mới lấy
-                if len(section_head) < 50:
+                if len(section) > 50:
                     print([section_head])
                     list_result.append({'id_file': id_file,
                                         'filename': filename,

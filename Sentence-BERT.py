@@ -20,16 +20,7 @@ params = ('20231028_20-52-28')
 sp = """SET NOCOUNT ON; EXEC temp_output_by_session_id '{0}'; """.format(params)
 df = read_data_type_db2(db, sp)
 
-#viết hàm đọc một danh sách gồm 10 câu. Nếu câu nào thuộc một trong các từ khóa thì lấy câu đó
-def extract_sentences(df):
-    # Lấy danh sách các từ khóa
-    keywords = get_keywords()
-    # Tạo một cột mới để lưu các câu chứa từ khóa
-    df['paragraph_contain_keywords'] = df.apply(lambda row: get_paragraph_contain_keywords(row['ind_name_vn'], keywords), axis=1)
-    # Lấy các câu chứa từ khóa
-    df = df[df['paragraph_contain_keywords'] != '']
-    df = df.reset_index(drop=True)
-    return df
+
 
 
 def split_paragraph_to_sentences(df):
