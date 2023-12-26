@@ -15,9 +15,18 @@ config = read_config_file()
 df_extract = read_data(type_data='sql_server', config=config, path_data=None,
                        where_stm='WHERE session_id = \'20230502_22-17-06\'')
 df_extract = pre_process_df(df_extract)
+documents = [
+    "hân hoan",
+    "hạnh phúc",
+    "công thức",
+    "xét nghiệm",
+    "vui vẻ",
+    # Add more documents as needed
+]
 # Tokenize and encode the documents
 document_embeddings = []
-for document in df_extract['clean_content']:
+#for document in df_extract['clean_content']:
+for document in documents:
     inputs = tokenizer(document, return_tensors="pt", padding=True, truncation=True)
     with torch.no_grad():
         outputs = model(**inputs)
@@ -25,7 +34,7 @@ for document in df_extract['clean_content']:
     document_embeddings.append(document_embedding)
 document_embeddings = torch.cat(document_embeddings)
 
-user_query = "giám sát đầu tư của kế hoạch"
+user_query = "vui vẻ"
 user_query = _clean_text(user_query)
 user_query = __remove_token(user_query)
 user_query_inputs = tokenizer(user_query, return_tensors="pt", padding=True, truncation=True)

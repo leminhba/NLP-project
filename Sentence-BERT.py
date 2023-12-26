@@ -16,7 +16,7 @@ file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
 config = read_config_file()
 db = config['test_db']
-params = ('20231028_20-52-28')
+params = ('20231129_15-04-27')
 sp = """SET NOCOUNT ON; EXEC temp_output_by_session_id '{0}'; """.format(params)
 df = read_data_type_db2(db, sp)
 
@@ -34,8 +34,8 @@ def split_paragraph_to_sentences(df):
 
 
 #new_df = split_paragraph_to_sentences(df)
-new_df = extract_sentences(df)
-new_df = pre_process_df(new_df)
+#new_df = extract_sentences(df)
+new_df = pre_process_df(df)
 cluster_names_samples = {
     0: "Giá vật tư đầu vào tăng",
     1: "Thời tiết",
@@ -94,6 +94,7 @@ for cluster_label, num_sentences in sorted_clusters:
     print()
 
 # Thử nghiệm số lượng nhóm từ 1 đến 10
+'''
 num_clusters_range = range(1, 11)
 inertia_values = []
 
@@ -107,4 +108,4 @@ plt.plot(num_clusters_range, inertia_values, marker='o')
 plt.title('Elbow Method for Optimal k')
 plt.xlabel('Number of Clusters (k)')
 plt.ylabel('Inertia')
-plt.show()
+plt.show()'''

@@ -1,11 +1,27 @@
 import re
+
+
+# Biểu thức chính quy cho các mục bắt đầu bằng chữ số và số La Mã
+numeric_splitter = re.compile(r"^\d+\.", re.MULTILINE)
+roman_splitter = re.compile(r"^[IVXLC]+\.", re.MULTILINE)
 #doc_splitter = re.compile(r"^(?:Điều\ )\d+\.?", re.MULTILINE) #tach theo Dieu
 #doc_splitter = re.compile(r"^(?:\d+)\.\d+\.", re.MULTILINE) #tach theo Khoan
-doc_splitter = re.compile(r"^(?:\d+)\.", re.MULTILINE) #tach theo mục bắt đầu bằng chữ số
-#Chi lay ten Dieu
-#doc_splitter = re.compile(r"^\d+\.(?:Những tồn tại, hạn chế\ )?", re.MULTILINE)
+
+
+# Biểu thức chính quy để tách theo số La Mã và số thứ tự
+#doc_splitter = re.compile(r"(?:^[IVXLC]+\.\d+\.)", re.MULTILINE)
+#doc_splitter = re.compile(r"(?:^[IVXLC]+\.\d+\.|\b(đánh giá|tồn tại|hạn chế|khó khăn|vướng mắc)\b)", re.MULTILINE | re.IGNORECASE)
+
+# Danh sách các từ khóa
+#keywords = ["đánh giá", "tồn tại", "hạn chế", "khó khăn", "vướng mắc"]
+# Tạo chuỗi từ danh sách các từ khóa, phân tách bằng '|'
+#keywords_pattern = r"(" + "|".join(keywords) + ")"
+
+# Biểu thức chính quy để tìm kiếm số La Mã hoặc số thứ tự theo sau ngay lập tức bởi một trong các từ khóa
+#doc_splitter = re.compile(r"(^[IVXLC]+\.\d+\.|\b)\s*" + keywords_pattern, re.MULTILINE | re.IGNORECASE)
 
 text = """
+I. ĐÁNH GIÁ TÌNH HÌNH KINH TẾ - XÃ HỘI 6 THÁNG ĐẦU NĂM 2021 VÀ NHIỆM VỤ 6 THÁNG CUỐI NĂM 2021
 1. PHÁT TRIỂN SẢN XUẤT KINH DOANH VÀ CÁC NHIỆM VỤ TRỌNG TÂM  
 1.1. Kết quả sản xuất
 a) Trồng trọt
@@ -34,15 +50,24 @@ Với tinh thần nhìn thẳng, thấy rõ tồn tại, hạn chế để khắ
 - Đối với xây dựng nhãn hiệu: Kinh phí chứng nhận cao, các bước và thủ tục để xây dựng chưa quy định cụ thể nên rất khó hướng dẫn tổ chức, cá nhân thực hiện; bên cạnh đó thời gian thực hiện chứng nhận kéo dài từ 18 - 24 tháng.
 
 """
-matches = ["tồn tại", "hạn chế", "khó khăn", "vướng mắc"]
-starts = [match.span()[0] for match in doc_splitter.finditer(text)] + [len(text)]
-sections = [text[starts[idx]:starts[idx+1]] for idx in range(len(starts)-1)]
+matches = ["đánh giá", "tồn tại", "hạn chế", "khó khăn", "vướng mắc"]
+
+def find_sections(splitter):
+    starts = [match.span()[0] for match in splitter.finditer(text)] + [len(text)]
+    sections = [text[starts[idx]:starts[idx+1]] for idx in range(len(starts)-1)]
+    return sections
+
+# Thử tìm theo chữ số trước
+sections = find_sections(numeric_splitter)
+
+# Nếu không tìm thấy mục nào, thử tìm theo số La Mã
+if not sections:
+    sections = find_sections(roman_splitter)
+
+
 for section in sections:
-    section_head = section.splitlines()[0]  #chi lay so dieu
-    if not matches:
-        print([section])
-    else:
-        if any([x in section_head for x in matches]):  # chỉ lấy mục thỏa mãn điều kiện
-            print([section])
+    section_head = section.splitlines()[0].lower()
+    if any(match in section_head for match in matches):  # chỉ lấy mục thỏa mãn điều kiện
+        print(section_head)
 
 

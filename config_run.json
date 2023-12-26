@@ -15,7 +15,8 @@
     "username_get_token": "api",
     "password_get_token": "123456",
     "output_table_name_temp": "temp_output",
-    "source_table_name": "source"
+    "source_table_name": "source",
+    "article_table_name": "Article"
   }
 }
 

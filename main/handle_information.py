@@ -357,15 +357,23 @@ def classify_handle5(id_file, filename, report_unit, area_id, year, content, dic
 
     return list_result,list_result_source
 
+def find_sections(splitter, text):
+    starts = [match.span()[0] for match in splitter.finditer(text)] + [len(text)]
+    sections = [text[starts[idx]:starts[idx+1]] for idx in range(len(starts)-1)]
+    return sections
+
 def classify_handle_section(id_file, filename, report_unit, area_id, year, content, dict_general_keywords,
                      dict_specific_keywords, session_id, command_api, api_info, type_extract, split_sentence):
     list_result_source = []
     list_result = []
     string_pattern = ""
+    roman_splitter = r"^[IVXLC]+\."
     if type_extract == 'muc_123':
         string_pattern = r"^(?:\d+)\."
     elif type_extract == 'muc_LaMa':
         string_pattern = r"^(?:[IVX]+)\."
+    elif type_extract == 'muc_LaMa_123':
+        string_pattern = r"^(?:[IVX]+\.\d+)\."
     else:
         string_pattern = r"^(?:Điều\ )\d+\.?"
 
@@ -376,13 +384,18 @@ def classify_handle_section(id_file, filename, report_unit, area_id, year, conte
             for keyword in keywords:
                 matches.append(keyword)
 
-    # tìm ở mục nhỏ hơn nữa, ví dụ như 2.1. hoặc là một phần nội dung trong mục La Ma. Danh gia
-    starts = [match.span()[0] for match in doc_splitter.finditer(content)] + [len(content)]
-    sections = [content[starts[idx]:starts[idx + 1]] for idx in range(len(starts) - 1)]
+    if type_extract == 'muc_LaMa_123':
+        sections = find_sections(doc_splitter, content)
+        # Nếu không tìm thấy mục nào, thử tìm theo số La Mã
+        if not sections:
+            sections = find_sections(roman_splitter, content)
+    else:
+        sections = find_sections(doc_splitter, content)
+
     source_session = int(time.strftime("%Y%m%d%H%M%S"))
     for section in sections:
         section_head = section.splitlines()[0]  # chi lay so dieu
-        if not matches:
+        if not matches: # nếu không có từ khóa thì lấy tất cả
             if split_sentence == "0":
                 list_result.append({'id_file': id_file,
                                     'filename': filename,
@@ -401,7 +414,7 @@ def classify_handle_section(id_file, filename, report_unit, area_id, year, conte
                 list_result.extend(classify_handle_paragraph(id_file, filename, report_unit, area_id, year, section, dict_general_keywords,
                     dict_specific_keywords, session_id, command_api, api_info,source_session))
         else:
-            if any([x in section_head for x in matches]):  # chỉ lấy mục thỏa mãn điều kiện
+            if any([x in section_head.lower() for x in matches]):  # chỉ lấy mục thỏa mãn điều kiện
                 if split_sentence == "0":
                     list_result.append({'id_file': id_file,
                                         'filename': filename,
@@ -427,9 +440,9 @@ def classify_handle_paragraph(id_file, filename, report_unit, area_id, year, con
     content = content.lower()
     list_paragraphs = content.split('\n')
     list_paras_sents = []
-    for para_i in list_paragraphs:
+    for para_i in list_paragraphs: # tach theo dau xuong dong
         list_sents = nltk.tokenize.sent_tokenize(para_i)
-        for sent in list_sents:
+        for sent in list_sents: # tach theo cau
             list_paras_sents.append({'sent': sent, 'para': para_i})
 
     for element_sent in list_paras_sents:
