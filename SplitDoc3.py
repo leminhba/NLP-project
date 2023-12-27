@@ -57,17 +57,23 @@ def find_sections(splitter):
     sections = [text[starts[idx]:starts[idx+1]] for idx in range(len(starts)-1)]
     return sections
 
+
+# Hàm tìm kiếm và in ra tất cả mục thỏa mãn tiêu chí
+def search_and_print_sections(splitter):
+    found = False
+    sections = find_sections(splitter)
+    for section in sections:
+        section_head = section.splitlines()[0].lower()
+        if any(match in section_head for match in matches):
+            print(section_head)
+            found = True
+    return found
+
 # Thử tìm theo chữ số trước
-sections = find_sections(numeric_splitter)
+found = search_and_print_sections(numeric_splitter)
 
 # Nếu không tìm thấy mục nào, thử tìm theo số La Mã
-if not sections:
-    sections = find_sections(roman_splitter)
-
-
-for section in sections:
-    section_head = section.splitlines()[0].lower()
-    if any(match in section_head for match in matches):  # chỉ lấy mục thỏa mãn điều kiện
-        print(section_head)
+if not found:
+    search_and_print_sections(roman_splitter)
 
 

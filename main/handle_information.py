@@ -283,7 +283,7 @@ def classify_handle_2section(id_file, filename, report_unit, area_id, year, cont
         for topic, keywords in dict_specific_keywords.items():
             for keyword in keywords:
                 matches.append(keyword)
-    #matches = ["tồn tại", "hạn chế", "khó khăn", "vướng mắc"]
+
     # tìm ở mục nhỏ hơn nữa, ví dụ như 2.1. hoặc là một phần nội dung trong mục La Ma. Danh gia
     starts_roman = [match.span()[0] for match in doc_splitter_roman.finditer(content)] + [len(content)]
     sections_roman = [content[starts_roman[idx]:starts_roman[idx + 1]] for idx in range(len(starts_roman) - 1)]
@@ -362,18 +362,28 @@ def find_sections(splitter, text):
     sections = [text[starts[idx]:starts[idx+1]] for idx in range(len(starts)-1)]
     return sections
 
+# Hàm tìm kiếm và in ra tất cả mục thỏa mãn tiêu chí
+def found_sections(sections, matches):
+    found = False
+    for section in sections:
+        section_head = section.splitlines()[0].lower()
+        if any(match in section_head for match in matches):
+            found = True
+    return found
+
 def classify_handle_section(id_file, filename, report_unit, area_id, year, content, dict_general_keywords,
                      dict_specific_keywords, session_id, command_api, api_info, type_extract, split_sentence):
     list_result_source = []
     list_result = []
     string_pattern = ""
-    roman_splitter = r"^[IVXLC]+\."
+    roman_splitter = re.compile(r"^[IVXLC]+\.", re.MULTILINE)
     if type_extract == 'muc_123':
         string_pattern = r"^(?:\d+)\."
     elif type_extract == 'muc_LaMa':
         string_pattern = r"^(?:[IVX]+)\."
     elif type_extract == 'muc_LaMa_123':
-        string_pattern = r"^(?:[IVX]+\.\d+)\."
+        string_pattern = r"^(?:\d+)\."
+        #string_pattern = r"^(?:[IVX]+\.\d+)\."
     else:
         string_pattern = r"^(?:Điều\ )\d+\.?"
 
@@ -387,7 +397,7 @@ def classify_handle_section(id_file, filename, report_unit, area_id, year, conte
     if type_extract == 'muc_LaMa_123':
         sections = find_sections(doc_splitter, content)
         # Nếu không tìm thấy mục nào, thử tìm theo số La Mã
-        if not sections:
+        if not found_sections(sections, matches):
             sections = find_sections(roman_splitter, content)
     else:
         sections = find_sections(doc_splitter, content)
@@ -529,10 +539,6 @@ def process_all_report(df_info, dict_general_keywords, dict_specific_keywords, n
         year = row['Date']
         if type_extract == 'keyword':
             list_of_all_dict_mining = classify_handle(id_file, filename, report_unit, area_id, year, content,
-                                                              dict_general_keywords, dict_specific_keywords,
-                                                              session_id)
-        elif type_extract == 'muc_LaMa_123':
-            list_of_all_dict_mining = classify_handle_2section(id_file, filename, report_unit, area_id, year, content,
                                                               dict_general_keywords, dict_specific_keywords,
                                                               session_id)
         else:
