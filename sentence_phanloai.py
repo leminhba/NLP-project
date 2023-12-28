@@ -15,12 +15,12 @@ file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
 config = read_config_file()
 db = config['test_db']
-params = ('20231028_20-52-28')
+params = ('20231228_21-54-53')
 sp = """SET NOCOUNT ON; EXEC temp_output_by_session_id '{0}'; """.format(params)
 df = read_data_type_db2(db, sp)
 
-new_df = extract_sentences(df)
-new_df = pre_process_df(new_df)
+#new_df = extract_sentences(df)
+new_df = pre_process_df(df)
 # Danh sách từ khóa để phân loại
 list_of_keywords = ["nông thôn mới", "phá rừng OR vi phạm Luật Lâm nghiệp", "liên kết sản xuất", "dịch bệnh",
                     "giá AND tăng", "tiêm phòng", "sạt lở OR thiên tai OR bão"]
@@ -40,7 +40,7 @@ for index,row in new_df.iterrows():
         if "AND" in keyword:
             and_keywords = keyword.split("AND")
             if all(re.search(fr'\b{kw.strip()}\b', sentence.lower()) for kw in and_keywords):
-                classified_sentences[keyword]['sentences'].append(clean_prefix_and_whitespace(sentence))
+                classified_sentences[keyword]['sentences'].append(sentence)
                 classified_sentences[keyword]['count'] += 1
                 classified = True
                 break
@@ -48,20 +48,20 @@ for index,row in new_df.iterrows():
         elif "OR" in keyword:
             or_keywords = keyword.split("OR")
             if any(re.search(fr'\b{kw.strip()}\b', sentence) for kw in or_keywords):
-                classified_sentences[keyword]['sentences'].append(clean_prefix_and_whitespace(sentence))
+                classified_sentences[keyword]['sentences'].append(sentence)
                 classified_sentences[keyword]['count'] += 1
                 classified = True
                 break
         # Kiểm tra từ đơn
         else:
             if re.search(fr'\b{keyword}\b', sentence):
-                classified_sentences[keyword]['sentences'].append(clean_prefix_and_whitespace(sentence))
+                classified_sentences[keyword]['sentences'].append(sentence)
                 classified_sentences[keyword]['count'] += 1
                 classified = True
                 break
 
     if not classified:
-        classified_sentences["khác"]['sentences'].append(clean_prefix_and_whitespace(sentence))
+        classified_sentences["khác"]['sentences'].append(sentence)
         classified_sentences["khác"]['count'] += 1
 
 # Sắp xếp nhóm theo số câu giảm dần

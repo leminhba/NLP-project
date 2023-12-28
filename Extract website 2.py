@@ -6,10 +6,18 @@ from sqlalchemy.dialects.mssql import NVARCHAR, DATE
 import pandas as pd
 import main.util as util
 import datetime
-
-
+from main_model.config.read_config import *
+from main_model.util.io_util import *
 def not_relative_uri(href):
     return re.compile('^https://').search(href) is not None
+
+def del_duplicate(date):
+    config = read_config_file()
+    db = config['test_db']
+    sp = """DelDuplicateArticle """
+    exec_sp(db, sp, date)
+
+
 
 def get_website(url):
     page = requests.get(url)
@@ -58,6 +66,7 @@ def get_nongnghiep_vn():
                     #print(title)
                     insert_db(website, link, title, content, date_content)
         except Exception as e: print(e)
+
 
 def get_tuoitre_vn():
     website = 'Báo Tuổi trẻ'
@@ -115,7 +124,7 @@ def get_thanhnien_vn():
 def insert_db(website, link, title, content, date_content):
     config = util.get_config()
     custom_uri = config['uri_database']
-    print("connection {}".format(custom_uri))
+    #print("connection {}".format(custom_uri))
     engine = create_engine(custom_uri, encoding='utf8')
     df = pd.DataFrame([{"website": website,
                         "article_link": link,
@@ -127,8 +136,11 @@ def insert_db(website, link, title, content, date_content):
         dict_type[col_temp] = NVARCHAR
     df.to_sql(config['article_table_name'], engine, method='multi', if_exists='append', index=False, dtype=dict_type)
 
-#get_nongnghiep_vn()
-get_thanhnien_vn()
+get_nongnghiep_vn()
+#get_thanhnien_vn()
+now = datetime.datetime.now()
+now = now.strftime("%d/%m/%Y")
+del_duplicate(now)
 # 1 ngay thi chay 2 lan ham get_nongnghiep_vn
 # neu article_link da ton tai thi khong insert vao db
 
