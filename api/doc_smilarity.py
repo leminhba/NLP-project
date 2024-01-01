@@ -72,7 +72,7 @@ def find_similar_questions_bm25(query):
     scores = bm25.get_scores(query.split())
     # Create a DataFrame to store results
     result_df = pd.DataFrame(
-        {'sentence_contain_keywords': loaded_df['sentence_contain_keywords'].tolist(), 'score': scores})
+        {'sentence_contain_keywords': loaded_df['sentence_contain_keywords'].tolist(), 'score': scores, 'id': loaded_df['id'].tolist()})
 
     # Sort DataFrame by Score in descending order
     result_df = result_df.sort_values(by='score', ascending=False).reset_index(drop=True)
@@ -96,9 +96,10 @@ def extract_top_keywords(query, n=3):
     top_keywords = remove_under_score(top_keywords)
     return top_keywords
 
-def pre_process_table(df, content_col):
+def pre_process_table(df, content_col, id_col):
     df['clean_content'] = df.apply(lambda row: _clean_text_remove_token(row[content_col]), axis=1)
     df.rename(columns={content_col: 'sentence_contain_keywords'}, inplace=True)
+    df.rename(columns={id_col: 'id'}, inplace=True)
     return df
 
 def load_df():
@@ -108,13 +109,13 @@ def load_df():
         sp = """EXEC list_indicator """
         df = read_data_type_db2(db, sp)
         model_filename = "bm25_ind.joblib"
-        return pre_process_table(df, 'ind_name_vn'), model_filename
+        return pre_process_table(df, 'ind_name_vn', 'ind_id'), model_filename
     elif request.args.get('t') == "3":  # hoi dap
         db = config['test_db2']
         sp = """EXEC list_qa """
         df = read_data_type_db2(db, sp)
         model_filename = "bm25_qa.joblib"
-        return pre_process_table(df, 'question'), model_filename
+        return pre_process_table(df, 'question', 'qa_id'), model_filename
     else:  # lay theo session
         db = config['test_db']
         params = ('20230502_22-17-06')
