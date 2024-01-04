@@ -1,41 +1,51 @@
-import scrapy
-from scrapy.crawler import CrawlerProcess
-from urllib.parse import urljoin
+from bs4 import BeautifulSoup
+import re
+import os
+import requests
+from urllib.parse import urlparse
 
-class MySpider(scrapy.Spider):
-    name = 'myspider'
-    allowed_domains = ['nongnghiep.vn']
-    start_urls = ['https://nongnghiep.vn']
-    visited_urls = set()
+def get_all_file_in_folder(path="D:\\Downloaded Web Sites\\tuoitre"):
+    list_file = []
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            list_file.append(os.path.join(root, file))
+    return list_file
 
-    def parse(self, response):
-        # Kiểm tra xem URL đã được quét chưa, nếu đã quét thì thoát
-        if response.url in self.visited_urls:
-            return
-        else:
-            self.visited_urls.add(response.url)
-
-        # Lấy tiêu đề và nội dung
-        title = response.css('title::text').get()
-        url = response.url
-
-        # Lưu tiêu đề và nội dung vào file txt
-        if title:
-            print(f"Title: {title}")
-            print(f"URL: {url}\n")
-
-        # Lấy tất cả các liên kết và tiếp tục quét
-        for next_page in response.css('a::attr(href)'):
-            absolute_next_page = urljoin(response.url, next_page.extract())
-            yield response.follow(absolute_next_page, self.parse)
+def get_website(html_file):
+    with open(html_file, encoding="utf8") as fp:
+        soup = BeautifulSoup(fp, 'html.parser')
+    return soup
 
 
+def extract_info_and_write_to_txt(html_file):
+    new_feeds = get_website(html_file).find('div', class_='box-category-middle').find_all('a',class_='box-category-link-with-avatar')
+    for feed in new_feeds:
+        title = feed.get('title')
+        link = feed.get('href')
+        # Phân tích URL để lấy tên file từ đường dẫn
+        parsed_url = urlparse(link)
+        file_name = parsed_url.path.split("/")[-1]
+        response = requests.get(link)
+        soup = BeautifulSoup(response.content, "html.parser")
+        # Xóa tất cả các phần tử hình ảnh từ trang web
+        for img in soup.find_all('img'):
+            img.extract()
+        # Lấy nội dung HTML sau khi đã xóa hình ảnh
+        cleaned_html = soup.prettify()
+        # Lưu nội dung HTML vào file trên đĩa
+        with open(file_name, "w", encoding="utf-8") as file:
+            file.write(cleaned_html)
 
-# Tạo một đối tượng CrawlerProcess và cấu hình nó
-process = CrawlerProcess({
-    'USER_AGENT': 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)'
-})
 
-# Chạy Spider
-process.crawl(MySpider)
-process.start()
+
+if __name__ == "__main__":
+    # Đặt thư mục làm việc hiện tại
+    new_directory = "D:/Downloaded Web Sites/tuoitre/extract"
+    os.chdir(new_directory)
+
+    list_file = get_all_file_in_folder()
+    for file in list_file:
+        try:
+            extract_info_and_write_to_txt(file)
+        except Exception as e:
+            print(f"Error processing {file}: {e}")
