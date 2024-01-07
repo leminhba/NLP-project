@@ -3,8 +3,11 @@ import re
 import os
 import requests
 from urllib.parse import urlparse
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
-def get_all_file_in_folder(path="D:\\Downloaded Web Sites\\tuoitre"):
+
+def get_all_file_in_folder(path="E:\\Downloaded Web Sites\\tuoitre"):
     list_file = []
     for root, dirs, files in os.walk(path):
         for file in files:
@@ -12,6 +15,26 @@ def get_all_file_in_folder(path="D:\\Downloaded Web Sites\\tuoitre"):
     return list_file
 
 def get_website(html_file):
+
+    # Thiết lập cho chế độ headless
+    options = Options()
+    options.headless = True
+
+    # Khởi tạo WebDriver với các tùy chọn
+    driver = webdriver.Chrome(options=options)
+    # Mở file HTML
+    driver.get(html_file)
+    # Lấy nội dung HTML của trang
+    html_content = driver.page_source
+
+    # Đóng trình duyệt
+    driver.quit()
+    # Sử dụng BeautifulSoup để phân tích cú pháp HTML
+    soup = BeautifulSoup(html_content, 'html.parser')
+    return soup
+
+
+def get_website2(html_file):
     with open(html_file, encoding="utf8") as fp:
         soup = BeautifulSoup(fp, 'html.parser')
     return soup
@@ -35,12 +58,13 @@ def extract_info_and_write_to_txt(html_file):
         # Lưu nội dung HTML vào file trên đĩa
         with open(file_name, "w", encoding="utf-8") as file:
             file.write(cleaned_html)
+        print(f"Saved {file_name}")
 
 
 
 if __name__ == "__main__":
     # Đặt thư mục làm việc hiện tại
-    new_directory = "D:/Downloaded Web Sites/tuoitre/extract"
+    new_directory = "E:/Downloaded Web Sites/tuoitre/extract"
     os.chdir(new_directory)
 
     list_file = get_all_file_in_folder()

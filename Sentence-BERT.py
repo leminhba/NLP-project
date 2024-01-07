@@ -49,7 +49,7 @@ cluster_names_samples = {
 }
 # Gán tên cho mỗi nhóm bằng cách so sánh với tên mẫu
 cluster_names = {}
-sentences = new_df['sentence_contain_keywords']
+sentences = new_df['clean_content']
 # Biểu diễn vector của các câu
 sentence_vectors = model.encode(sentences.tolist())
 # Sử dụng K-Means để nhóm các câu
@@ -72,6 +72,7 @@ for i in range(num_clusters):
     best_match_index = np.argmax(similarity_scores)
     cluster_names[i] = cluster_sentences[best_match_index]
 
+
 # Đếm số lượng câu trong mỗi nhóm
 #num_sentences_in_cluster = {i: sum(labels == i) for i in range(num_clusters)}
 
@@ -86,7 +87,8 @@ sorted_clusters = sorted(num_sentences_in_cluster.items(), key=lambda x: x[1], r
 # Hiển thị kết quả sắp xếp
 for cluster_label, num_sentences in sorted_clusters:
     cluster_name = cluster_names[cluster_label]
-    cluster_sentences = [sentences[j] for j in range(len(sentences)) if labels[j] == cluster_label]
+    #cluster_name = new_df['sentence_contain_keywords'][labels == cluster_label].iloc[0]  # Lấy giá trị từ cột "clean_text"
+    cluster_sentences = [new_df['sentence_contain_keywords'][j] for j in range(len(sentences)) if labels[j] == cluster_label]
 
     print(f"Nhóm: {cluster_name} ({num_sentences} câu):")
     for sentence in cluster_sentences:
