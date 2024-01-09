@@ -1,37 +1,34 @@
-import pandas as pd
-import re
-from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
+from kneed import KneeLocator
+import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
+# Tạo dữ liệu giả định
+data = np.array([1, 2, 4, 7, 10, 12, 15, 18, 20, 25, 30])
 
-# Function for basic text cleaning
-def clean_text(text):
-    # Removing special characters and digits
-    text = re.sub(r'[^a-zA-ZÀ-ỹ\s]', '', text, re.I|re.A)
-    # Converting to lower case
-    text = text.lower()
-    return text
+# Tạo danh sách các giá trị k của K để kiểm tra
+k_values = range(1, 11)
 
-# Load the Excel file
-file_path = 'D:/cau_kho_khan.xls'  # Replace with your file path
-data = pd.read_excel(file_path)
+# Tạo danh sách để lưu giá trị WCSS (Within-Cluster-Sum-of-Squares)
+wcss_values = []
 
-# Clean the sentences
-data['cleaned_sentence'] = data['sentence_contain_keywords'].apply(clean_text)
+# Tính WCSS cho mỗi giá trị k
+for k in k_values:
+    kmeans = KMeans(n_clusters=k)
+    kmeans.fit(data.reshape(-1, 1))
+    wcss_values.append(kmeans.inertia_)
 
-# Convert text to numerical data using TF-IDF
-vectorizer = TfidfVectorizer(max_features=1000)
-X = vectorizer.fit_transform(data['cleaned_sentence'])
+# Sử dụng KneeLocator để tìm điểm khuỷu
+knee = KneeLocator(k_values, wcss_values, curve='convex', direction='decreasing')
 
-# Apply K-Means clustering
-# Assuming an arbitrary number of clusters, for example, 5
-n_clusters = 5
-kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(X)
+# Vẽ biểu đồ
+plt.figure(figsize=(8, 6))
+plt.plot(k_values, wcss_values, marker='o', linestyle='-', color='b')
+plt.xlabel('K (Number of Clusters)')
+plt.ylabel('WCSS (Within-Cluster-Sum-of-Squares)')
+plt.title('Elbow Method')
+plt.vlines(knee.elbow, plt.ylim()[0], plt.ylim()[1], linestyles='--', colors='r', label='Elbow Point')
+plt.legend()
+plt.show()
 
-# Add the cluster labels to the dataframe
-data['cluster'] = kmeans.labels_
-
-# Optionally, save the dataframe with cluster labels to an Excel file
-output_file_path = 'D:/cau_kho_khan_ket_qua.xlsx'  # Replace with your desired output file path
-data.to_excel(output_file_path, index=False)
-
-print("Clustering completed. Results saved to:", output_file_path)
+# In ra giá trị khuỷu
+print(f"The elbow point is at K = {knee.elbow}")

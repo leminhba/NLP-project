@@ -230,6 +230,35 @@ def get_dantri_vn():
                     insert_db(website, link, title, content, date_content, article_type, intro)
         except Exception as e: print(e)
 
+def get_tienphong():
+    website = 'Báo Tiền Phong'
+    url = 'https://tienphong.vn/xa-hoi/'
+    new_feeds = get_website(url).find('div', class_='content-list').find_all('a', class_='cms-link')
+    for feed in new_feeds:
+        title = feed.get('title')
+        article_type = check_title_type(title)
+        link = feed.get('href')
+        response = requests.get(link)
+        soup = BeautifulSoup(response.content, "html.parser")
+
+        # nếu có lỗi thì bỏ qua dòng lệnh dưới đây
+        try:
+
+            date_content = soup.find('span', class_='time').find('time').text
+            # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
+            date_content = re.search(r'\d{2}/\d{2}/\d{4}', date_content).group()
+            # lấy thời gian hiện tại theo dạng dd/mm/yyyy
+            now = datetime.datetime.now()
+            now = now.strftime("%d/%m/%Y")
+            if date_content == now:
+                intro = soup.find("div", class_="article__sapo").text
+                content = soup.find("div", class_="article__body").text
+                #nếu content > 50   thì mới insert vào db
+                if len(content) > 50:
+                    #print(title)
+                    insert_db(website, link, title, content, date_content, article_type, intro)
+        except Exception as e: print(e)
+
 def insert_db(website, link, title, content, date_content,article_type, article_intro):
     config = util.get_config()
     custom_uri = config['uri_database']
@@ -246,10 +275,11 @@ def insert_db(website, link, title, content, date_content,article_type, article_
     dict_type = {col: NVARCHAR for col in df}
     df.to_sql(config['article_table_name'], engine, method='multi', if_exists='append', index=False, dtype=dict_type)
 
-get_nongnghiep_vn()
-get_thanhnien_vn()
-get_tuoitre_vn()
+#get_nongnghiep_vn()
+#get_thanhnien_vn()
+#get_tuoitre_vn()
 #get_dantri_vn()
+get_tienphong()
 #article_type = check_title_type("Hỗ trợ nông dân chuyển đổi số, ‘chuyến tàu’ không thể lỡ")
 now = datetime.datetime.now()
 now = now.strftime("%d/%m/%Y")
