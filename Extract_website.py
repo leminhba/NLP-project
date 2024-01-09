@@ -15,6 +15,9 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+now = datetime.datetime.now()
+now = now.strftime("%d/%m/%Y")
+
 
 def not_relative_uri(href):
     return re.compile('^https://').search(href) is not None
@@ -153,16 +156,11 @@ def get_tuoitre_vn():
         link = 'https://tuoitre.vn' + feed.get('href')
         response = requests.get(link)
         soup = BeautifulSoup(response.content, "html.parser")
-
         # nếu có lỗi thì bỏ qua dòng lệnh dưới đây
         try:
-
             date_content = soup.find("div", class_="detail-time").text
             # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
             date_content = re.search(r'\d{2}/\d{2}/\d{4}', date_content).group()
-            # lấy thời gian hiện tại theo dạng dd/mm/yyyy
-            now = datetime.datetime.now()
-            now = now.strftime("%d/%m/%Y")
             if date_content == now:
                 intro = soup.find("h2", class_="detail-sapo").text
                 content = soup.find("div", class_="detail-content").text
@@ -188,9 +186,6 @@ def get_thanhnien_vn():
             date_content = soup.find("div", class_="detail-time").text
             # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
             date_content = re.search(r'\d{2}/\d{2}/\d{4}', date_content).group()
-            # lấy thời gian hiện tại theo dạng dd/mm/yyyy
-            now = datetime.datetime.now()
-            now = now.strftime("%d/%m/%Y")
             if date_content == now:
                 intro = soup.find("h2", class_="detail-sapo").text
                 content = soup.find("div", class_="detail-content").text
@@ -212,23 +207,21 @@ def get_dantri_vn():
         response = requests.get(link)
         soup = BeautifulSoup(response.content, "html.parser")
         article_type = check_title_type(title)# sau này khi phan loai duoc thi se chuyen xuong duoi
+        if article_type != 'none':
+            # nếu có lỗi thì bỏ qua dòng lệnh dưới đây
+            try:
+                date_content = soup.find("div", class_="dt-news__time").text
+                # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
+                date_content = re.search(r'\d{2}/\d{2}/\d{4}', date_content).group()
+                if date_content == now:
+                    intro = soup.find("div", class_="dt-news__sapo").text
+                    content = soup.find("div", class_="dt-news__content").text
+                    # nếu content > 50   thì mới insert vào db
+                    if len(content) > 50:
+                        #print(title)
+                        insert_db(website, link, title, content, date_content, article_type, intro)
+            except Exception as e: print(e)
 
-        # nếu có lỗi thì bỏ qua dòng lệnh dưới đây
-        try:
-            date_content = soup.find("time", class_="author-time").text
-            # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
-            date_content = re.search(r'\d{2}/\d{2}/\d{4}', date_content).group()
-            # lấy thời gian hiện tại theo dạng dd/mm/yyyy
-            now = datetime.datetime.now()
-            now = now.strftime("%d/%m/%Y")
-            if date_content == now:
-                intro = soup.find("h2", class_="singular-sapo").text
-                content = soup.find("div", class_="singular-content").text
-                #nếu content > 50   thì mới insert vào db
-                if len(content) > 50:
-                    #print(title)
-                    insert_db(website, link, title, content, date_content, article_type, intro)
-        except Exception as e: print(e)
 
 def get_tienphong():
     website = 'Báo Tiền Phong'
@@ -237,27 +230,56 @@ def get_tienphong():
     for feed in new_feeds:
         title = feed.get('title')
         article_type = check_title_type(title)
-        link = feed.get('href')
-        response = requests.get(link)
-        soup = BeautifulSoup(response.content, "html.parser")
+        # nếu khác none thì lấy link, nếu không thì bỏ qua
+        if article_type != 'none':
+            link = feed.get('href')
+            response = requests.get(link)
+            soup = BeautifulSoup(response.content, "html.parser")
+            try:
+                date_content = soup.find('span', class_='time').find('time').text
+                # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
+                date_content = re.search(r'\d{2}/\d{2}/\d{4}', date_content).group()
+                if date_content == now:
+                    intro = soup.find("div", class_="article__sapo").text
+                    content = soup.find("div", class_="article__body").text
+                    # nếu content > 50   thì mới insert vào db
+                    if len(content) > 50:
+                        # print(title)
+                        insert_db(website, link, title, content, date_content, article_type, intro)
+            except Exception as e:
+                print(e)
 
-        # nếu có lỗi thì bỏ qua dòng lệnh dưới đây
-        try:
 
-            date_content = soup.find('span', class_='time').find('time').text
-            # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
-            date_content = re.search(r'\d{2}/\d{2}/\d{4}', date_content).group()
-            # lấy thời gian hiện tại theo dạng dd/mm/yyyy
-            now = datetime.datetime.now()
-            now = now.strftime("%d/%m/%Y")
-            if date_content == now:
-                intro = soup.find("div", class_="article__sapo").text
-                content = soup.find("div", class_="article__body").text
-                #nếu content > 50   thì mới insert vào db
-                if len(content) > 50:
-                    #print(title)
-                    insert_db(website, link, title, content, date_content, article_type, intro)
-        except Exception as e: print(e)
+def get_vnexpress():
+    website = 'Báo vnexpress'
+    url = 'https://vnexpress.net/'
+    new_feeds = get_website(url).find('div', class_='col-left').find_all('h3', class_='title-news')
+    for feed in new_feeds:
+        title = feed.find('a').text
+        article_type = check_title_type(title)
+        # nếu khác none thì lấy link, nếu không thì bỏ qua
+        if article_type != 'none':
+            link = feed.find('a').get('href')
+            response = requests.get(link)
+            soup = BeautifulSoup(response.content, "html.parser")
+            try:
+                date_content = soup.find('div', class_='header-content').find('span', class_='date').text
+                # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
+                match = re.search(r'(\d{1,2})/(\d{1,2})/(\d{4})', date_content)
+                if match:
+                    day = int(match.group(1))
+                    month = int(match.group(2))
+                    year = match.group(3)
+                    date_content = f"{day:02d}/{month:02d}/{year}"
+                if date_content == now:
+                    intro = soup.find('div', class_='sidebar-1').find('p', class_='description').text
+                    content = soup.find('div', class_='sidebar-1').find('article', class_='fck_detail').text
+                    # nếu content > 50   thì mới insert vào db
+                    if len(content) > 50:
+                        # print(title)
+                        insert_db(website, link, title, content, date_content, article_type, intro)
+            except Exception as e:
+                print(e)
 
 def insert_db(website, link, title, content, date_content,article_type, article_intro):
     config = util.get_config()
@@ -279,11 +301,11 @@ def insert_db(website, link, title, content, date_content,article_type, article_
 #get_thanhnien_vn()
 #get_tuoitre_vn()
 #get_dantri_vn()
-get_tienphong()
+#get_tienphong()
+#get_vnexpress()
 #article_type = check_title_type("Hỗ trợ nông dân chuyển đổi số, ‘chuyến tàu’ không thể lỡ")
-now = datetime.datetime.now()
-now = now.strftime("%d/%m/%Y")
-del_duplicate(now)
+
+#del_duplicate(now)
 # 1 ngay thi chay 2 lan ham get_nongnghiep_vn
 # neu article_link da ton tai thi khong insert vao db
 
