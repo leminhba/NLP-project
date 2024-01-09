@@ -6,7 +6,7 @@ import urllib.parse
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances_argmin_min
-
+import matplotlib.pyplot as plt
 
 clustered = Blueprint('cluster', __name__)
 config = read_config_file()
@@ -30,17 +30,30 @@ def clustering():
     # Convert text to numerical data using TF-IDF
     vectorizer = TfidfVectorizer(max_features=1000)
     sentence_vectors = vectorizer.fit_transform(sentences)
+
     num_clusters = int(urllib.parse.unquote(request.args.get('cluster')))
     kmeans = KMeans(n_clusters=num_clusters)
     kmeans.fit(sentence_vectors)
     # Gán nhóm cho mỗi câu
     df['cluster'] = kmeans.labels_
 
+    # Extract feature names and cluster centers
+    feature_names = vectorizer.get_feature_names_out()
+    cluster_centers = kmeans.cluster_centers_
+
+    # Identify top features (words) in each cluster
+    top_n_features = 10  # Number of top features to retrieve for each cluster
+    df['representative_sentence'] = df['cluster'].apply(
+        lambda cluster: ", ".join(
+            [feature_names[i] for i in cluster_centers[cluster].argsort()[-top_n_features:][::-1]])
+    )
+
+    '''
     # Find the closest sentence to the centroid of each cluster
     closest, _ = pairwise_distances_argmin_min(kmeans.cluster_centers_, sentence_vectors)
     df['representative_sentence'] = df['cluster'].apply(
         lambda x: df['sentence_contain_keywords'].iloc[closest[x]])
-
+    '''
     # Count sentences in each cluster and sort clusters by this count
     cluster_counts = df['cluster'].value_counts().sort_values(ascending=False)
     sorted_clusters = cluster_counts.index.tolist()
