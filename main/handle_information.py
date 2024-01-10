@@ -432,7 +432,7 @@ def classify_handle_paragraph(id_file, filename, report_unit, area_id, year, con
     #content = content.lower()
     list_paragraphs = content.split('\n')
     list_paras_sents = []
-
+    invalid_keywords_file_path = 'dictionary/' + str(year) + '_invalid_sent.txt'
     for para_i in list_paragraphs: # tach theo dau xuong dong
         list_sents = nltk.tokenize.sent_tokenize(para_i)
         for sent in list_sents: # tach theo cau
@@ -443,6 +443,10 @@ def classify_handle_paragraph(id_file, filename, report_unit, area_id, year, con
                 # Chỉ xử lý nếu có từ khóa phù hợp
                 if matching_sentences:
                     list_paras_sents.append({'sent': sent, 'para': para_i})
+                else:
+                    # If there are no matching sentences, write "sent" to the invalid keywords file
+                    with open(invalid_keywords_file_path, 'a', encoding='utf-8') as invalid_keywords_file:
+                        invalid_keywords_file.write(sent + '\n')
 
     for element_sent in list_paras_sents:
         sent_i = clean_prefix_and_whitespace(element_sent['sent'])

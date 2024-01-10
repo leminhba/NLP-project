@@ -6,7 +6,7 @@ from sqlalchemy.dialects.mssql import NVARCHAR, INTEGER
 import pandas as pd
 import main.util as util
 from main.handle_information import load_keywords_from_excel
-import datetime
+import traceback
 from main_model.config.read_config import *
 from main_model.util.io_util import *
 from selenium import webdriver
@@ -17,6 +17,29 @@ from selenium.webdriver.support import expected_conditions as EC
 
 now = datetime.datetime.now()
 now = now.strftime("%d/%m/%Y")
+
+
+def log_error(e, function_name):
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # Format the current time as a string
+    filename = f"error_log_{function_name}_{current_time}.txt"  # Append the current time and function name to the filename
+    with open('log/' + filename, 'a') as file:
+        file.write(f"Error in {function_name}: {e}\nTraceback:\n{traceback.format_exc()}\n")
+
+
+def run_with_error_logging(func, func_name):
+    try:
+        func()
+    except Exception as e:
+        log_error(e, func_name)
+
+
+def save_links_to_file(log_file, links):
+    try:
+        with open('log/' + log_file, 'a', encoding='utf-8') as file:
+            for link in links:
+                file.write(link + '\n')
+    except Exception as e:
+        print(f'Error while saving links to log file: {str(e)}')
 
 
 def not_relative_uri(href):
@@ -249,7 +272,6 @@ def get_tienphong():
             except Exception as e:
                 print(e)
 
-
 def get_vnexpress():
     website = 'Báo vnexpress'
     url = 'https://vnexpress.net/'
@@ -281,6 +303,76 @@ def get_vnexpress():
             except Exception as e:
                 print(e)
 
+def get_vietnamnet():
+    website = 'Báo vietnamnet'
+    url = 'https://vietnamnet.vn/'
+    new_feeds = get_website(url).find('div', class_='TopArticle').find_all('a', class_='TopArticleTitle')
+    for feed in new_feeds:
+        title = feed.text
+        article_type = check_title_type(title)
+        # nếu khác none thì lấy link, nếu không thì bỏ qua
+        if article_type != 'none':
+            link = feed.get('href')
+            response = requests.get(link)
+            soup = BeautifulSoup(response.content, "html.parser")
+            try:
+                date_content = soup.find('div', class_='ArticleDateTime').find('span').text
+                # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
+                match = re.search(r'(\d{1,2})/(\d{1,2})/(\d{4})', date_content)
+                if match:
+                    day = int(match.group(1))
+                    month = int(match.group(2))
+                    year = match.group(3)
+                    date_content = f"{day:02d}/{month:02d}/{year}"
+                if date_content == now:
+                    intro = soup.find('div', class_='ArticleLead').text
+                    content = soup.find('div', class_='ArticleContent').text
+                    # nếu content > 50   thì mới insert vào db
+                    if len(content) > 50:
+                        # print(title)
+                        insert_db(website, link, title, content, date_content, article_type, intro)
+            except Exception as e:
+                print(e)
+
+def get_nhandan():
+    website = 'Báo Nhân dân'
+    url = 'https://nhandan.vn/tin-moi.html'
+    new_feeds = get_website(url).find_all('h3', class_='story__heading')
+    none_type_links = []  # Tạo danh sách để lưu các liên kết
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # Lấy current_time một lần và sử dụng chung
+    log_file_base_name = 'get_nhandan'
+    links_by_article_type = {'none': [], 'non_none': []}  # Sử dụng từ điển để phân nhóm liên kết
+    count_none_type = 0
+    count_non_none_type = 0
+
+    for feed in new_feeds:
+        title = feed.text.strip()
+        article_type = check_title_type(title)
+        # nếu khác none thì lấy link, nếu không thì lưu link vào danh sách
+        if article_type != 'none':
+            link = feed.a['href']
+            response = requests.get(link)
+            soup = BeautifulSoup(response.content, "html.parser")
+            try:
+                date_content = soup.find('time', class_='time').text
+                date_content = re.search(r'\d{2}/\d{2}/\d{4}', date_content).group()
+                if date_content == now:
+                    intro = soup.find('div', class_='article__sapo').text
+                    content = soup.find('div', class_='article__body').text
+                    insert_db(website, link, title, content, date_content, article_type, intro)
+                    count_non_none_type += 1
+                    log_content = f" {count_non_none_type}: {title} (Article Type: {article_type})"
+                    save_links_to_file(f'{log_file_base_name}_{current_time}.txt', [log_content])
+
+            except Exception as e:
+                print(e)
+        else:
+            count_none_type += 1
+            log_content = f" {count_none_type}: {title}"
+            save_links_to_file(f'{log_file_base_name}_{current_time}.txt', [log_content])
+
+
+
 def insert_db(website, link, title, content, date_content,article_type, article_intro):
     config = util.get_config()
     custom_uri = config['uri_database']
@@ -304,7 +396,8 @@ def insert_db(website, link, title, content, date_content,article_type, article_
 #get_tienphong()
 #get_vnexpress()
 #article_type = check_title_type("Hỗ trợ nông dân chuyển đổi số, ‘chuyến tàu’ không thể lỡ")
-
+#run_with_error_logging(get_vietnamnet, "get_vietnamnet")
+run_with_error_logging(get_nhandan, "get_nhandan")
 #del_duplicate(now)
 # 1 ngay thi chay 2 lan ham get_nongnghiep_vn
 # neu article_link da ton tai thi khong insert vao db
