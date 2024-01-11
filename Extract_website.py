@@ -33,14 +33,17 @@ def run_with_error_logging(func, func_name):
         log_error(e, func_name)
 
 
-def save_links_to_file(log_file, links):
+def save_none_type_links_to_file(function_name, none_type_links):
     try:
-        with open('log/' + log_file, 'a', encoding='utf-8') as file:
-            for link in links:
-                file.write(link + '\n')
-    except Exception as e:
-        print(f'Error while saving links to log file: {str(e)}')
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        file_path = f'{function_name}_none_type_{current_time}.txt'
 
+        with open('log/' + file_path, 'w', encoding='utf-8') as file:
+            for link in none_type_links:
+                file.write(link + '\n')
+        print(f'Successfully saved {len(none_type_links)} links to {file_path}')
+    except Exception as e:
+        print(f'Error while saving links: {str(e)}')
 
 def not_relative_uri(href):
     return re.compile('^https://').search(href) is not None
@@ -167,70 +170,85 @@ def get_nongnghiep_vn():
             except Exception as e:
                 print(f"Lỗi: {link}")
     driver.quit()
+
+
 def get_tuoitre_vn():
     website = 'Báo Tuổi trẻ'
     url = 'https://tuoitre.vn/nong-nghiep.html'
     new_feeds = get_website(url).find('div', class_='box-category-middle').find_all('a', class_='box-category-link-with-avatar')
+    none_type_links = []  # Tạo danh sách để lưu các liên kết
+    log_file_base_name = 'tuoitre'
+    count_none_type = 0
     for feed in new_feeds:
         title = feed.get('title')
         article_type = check_title_type(title)
         if article_type == 'none':
-            article_type ='kinh_te_nong_nghiep' # nếu không phân loại được thì mặc định là kinh tế nông nghiệp
-        link = 'https://tuoitre.vn' + feed.get('href')
-        response = requests.get(link)
-        soup = BeautifulSoup(response.content, "html.parser")
-        # nếu có lỗi thì bỏ qua dòng lệnh dưới đây
-        try:
-            date_content = soup.find("div", class_="detail-time").text
-            # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
-            date_content = re.search(r'\d{2}/\d{2}/\d{4}', date_content).group()
-            if date_content == now:
-                intro = soup.find("h2", class_="detail-sapo").text
-                content = soup.find("div", class_="detail-content").text
-                #nếu content > 50   thì mới insert vào db
-                if len(content) > 50:
-                    #print(title)
+            link = 'https://tuoitre.vn' + feed.get('href')
+            response = requests.get(link)
+            soup = BeautifulSoup(response.content, "html.parser")
+            # nếu có lỗi thì bỏ qua dòng lệnh dưới đây
+            try:
+                date_content = soup.find("div", class_="detail-time").text
+                # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
+                date_content = re.search(r'\d{2}/\d{2}/\d{4}', date_content).group()
+                if date_content == now:
+                    intro = soup.find("h2", class_="detail-sapo").text
+                    content = soup.find("div", class_="detail-content").text
                     insert_db(website, link, title, content, date_content, article_type, intro)
-        except Exception as e: print(e)
+            except Exception as e: print(e)
+        else:
+            count_none_type += 1
+            log_content = f" {count_none_type}: {title}"
+            none_type_links.append(log_content)  # Lưu liên kết vào danh sách
+
+    save_none_type_links_to_file(log_file_base_name, none_type_links)
 
 def get_thanhnien_vn():
     website = 'Báo Thanh niên'
     url = 'https://thanhnien.vn/kinh-te/kinh-te-xanh.htm'
     new_feeds = get_website(url).find('div', class_='main').find_all('a', class_='box-category-link-title')
+    none_type_links = []  # Tạo danh sách để lưu các liên kết
+    log_file_base_name = 'thanhnien'
+    count_none_type = 0
     for feed in new_feeds:
         title = feed.get('title')
         article_type = check_title_type(title)
-        link = 'https://thanhnien.vn' + feed.get('href')
-        response = requests.get(link)
-        soup = BeautifulSoup(response.content, "html.parser")
-
-        # nếu có lỗi thì bỏ qua dòng lệnh dưới đây
-        try:
-            date_content = soup.find("div", class_="detail-time").text
-            # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
-            date_content = re.search(r'\d{2}/\d{2}/\d{4}', date_content).group()
-            if date_content == now:
-                intro = soup.find("h2", class_="detail-sapo").text
-                content = soup.find("div", class_="detail-content").text
-                #nếu content > 50   thì mới insert vào db
-                if len(content) > 50:
-                    #print(title)
+        if article_type != 'none':
+            link = 'https://thanhnien.vn' + feed.get('href')
+            response = requests.get(link)
+            soup = BeautifulSoup(response.content, "html.parser")
+            try:
+                date_content = soup.find("div", class_="detail-time").text
+                # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
+                date_content = re.search(r'\d{2}/\d{2}/\d{4}', date_content).group()
+                if date_content == now:
+                    intro = soup.find("h2", class_="detail-sapo").text
+                    content = soup.find("div", class_="detail-content").text
                     insert_db(website, link, title, content, date_content, article_type, intro)
-        except Exception as e: print(e)
+            except Exception as e: print(e)
+        else:
+            count_none_type += 1
+            log_content = f" {count_none_type}: {title}"
+            none_type_links.append(log_content)  # Lưu liên kết vào danh sách
+
+    save_none_type_links_to_file(log_file_base_name, none_type_links)
 
 def get_dantri_vn():
     website = 'Báo Dân trí'
     url = 'https://dantri.com.vn'
     # Extracting all links and titles
     new_feeds = get_website(url).find_all("h3", class_='article-title')
+    none_type_links = []  # Tạo danh sách để lưu các liên kết
+    log_file_base_name = 'dantri'
+    count_none_type = 0
     for feed in new_feeds:
         # đọc link và title từ feed
         title = feed.find('a').text
-        link = 'https://dantri.com.vn' + feed.find('a').get('href')
-        response = requests.get(link)
-        soup = BeautifulSoup(response.content, "html.parser")
         article_type = check_title_type(title)# sau này khi phan loai duoc thi se chuyen xuong duoi
         if article_type != 'none':
+            link = 'https://dantri.com.vn' + feed.find('a').get('href')
+            response = requests.get(link)
+            soup = BeautifulSoup(response.content, "html.parser")
             # nếu có lỗi thì bỏ qua dòng lệnh dưới đây
             try:
                 date_content = soup.find("div", class_="dt-news__time").text
@@ -244,12 +262,21 @@ def get_dantri_vn():
                         #print(title)
                         insert_db(website, link, title, content, date_content, article_type, intro)
             except Exception as e: print(e)
+        else:
+            count_none_type += 1
+            log_content = f" {count_none_type}: {title}"
+            none_type_links.append(log_content)  # Lưu liên kết vào danh sách
+
+    save_none_type_links_to_file(log_file_base_name, none_type_links)
 
 
 def get_tienphong():
     website = 'Báo Tiền Phong'
     url = 'https://tienphong.vn/xa-hoi/'
     new_feeds = get_website(url).find('div', class_='content-list').find_all('a', class_='cms-link')
+    none_type_links = []  # Tạo danh sách để lưu các liên kết
+    log_file_base_name = 'tienphong'
+    count_none_type = 0
     for feed in new_feeds:
         title = feed.get('title')
         article_type = check_title_type(title)
@@ -271,11 +298,20 @@ def get_tienphong():
                         insert_db(website, link, title, content, date_content, article_type, intro)
             except Exception as e:
                 print(e)
+        else:
+            count_none_type += 1
+            log_content = f" {count_none_type}: {title}"
+            none_type_links.append(log_content)  # Lưu liên kết vào danh sách
+
+    save_none_type_links_to_file(log_file_base_name, none_type_links)
 
 def get_vnexpress():
     website = 'Báo vnexpress'
     url = 'https://vnexpress.net/'
     new_feeds = get_website(url).find('div', class_='col-left').find_all('h3', class_='title-news')
+    none_type_links = []  # Tạo danh sách để lưu các liên kết
+    log_file_base_name = 'vnexpress'
+    count_none_type = 0
     for feed in new_feeds:
         title = feed.find('a').text
         article_type = check_title_type(title)
@@ -302,21 +338,30 @@ def get_vnexpress():
                         insert_db(website, link, title, content, date_content, article_type, intro)
             except Exception as e:
                 print(e)
+        else:
+            count_none_type += 1
+            log_content = f" {count_none_type}: {title}"
+            none_type_links.append(log_content)  # Lưu liên kết vào danh sách
+
+    save_none_type_links_to_file(log_file_base_name, none_type_links)
 
 def get_vietnamnet():
     website = 'Báo vietnamnet'
-    url = 'https://vietnamnet.vn/'
-    new_feeds = get_website(url).find('div', class_='TopArticle').find_all('a', class_='TopArticleTitle')
+    url = 'https://vietnamnet.vn/thoi-su'
+    new_feeds = get_website(url).find_all('h3', class_='vnn-title')
+    none_type_links = []  # Tạo danh sách để lưu các liên kết
+    log_file_base_name = 'vietnamnet'
+    count_none_type = 0
     for feed in new_feeds:
-        title = feed.text
+        title = feed.text.strip()
         article_type = check_title_type(title)
         # nếu khác none thì lấy link, nếu không thì bỏ qua
         if article_type != 'none':
-            link = feed.get('href')
+            link = 'https://vietnamnet.vn' + feed.a['href']
             response = requests.get(link)
             soup = BeautifulSoup(response.content, "html.parser")
             try:
-                date_content = soup.find('div', class_='ArticleDateTime').find('span').text
+                date_content = soup.find('div', class_='bread-crumb-detail__time').text
                 # trích xuất ngày tháng năm có dạng dd/mm/yyyy từ date_content
                 match = re.search(r'(\d{1,2})/(\d{1,2})/(\d{4})', date_content)
                 if match:
@@ -325,26 +370,25 @@ def get_vietnamnet():
                     year = match.group(3)
                     date_content = f"{day:02d}/{month:02d}/{year}"
                 if date_content == now:
-                    intro = soup.find('div', class_='ArticleLead').text
-                    content = soup.find('div', class_='ArticleContent').text
-                    # nếu content > 50   thì mới insert vào db
-                    if len(content) > 50:
-                        # print(title)
-                        insert_db(website, link, title, content, date_content, article_type, intro)
+                    intro = soup.find('h2', class_='content-detail-sapo').text
+                    content = soup.find('div', class_='main-content').text
+                    insert_db(website, link, title, content, date_content, article_type, intro)
             except Exception as e:
                 print(e)
+        else:
+            count_none_type += 1
+            log_content = f" {count_none_type}: {title}"
+            none_type_links.append(log_content)  # Lưu liên kết vào danh sách
+
+    save_none_type_links_to_file(log_file_base_name, none_type_links)
 
 def get_nhandan():
     website = 'Báo Nhân dân'
     url = 'https://nhandan.vn/tin-moi.html'
     new_feeds = get_website(url).find_all('h3', class_='story__heading')
     none_type_links = []  # Tạo danh sách để lưu các liên kết
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # Lấy current_time một lần và sử dụng chung
-    log_file_base_name = 'get_nhandan'
-    links_by_article_type = {'none': [], 'non_none': []}  # Sử dụng từ điển để phân nhóm liên kết
+    log_file_base_name = 'nhandan'
     count_none_type = 0
-    count_non_none_type = 0
-
     for feed in new_feeds:
         title = feed.text.strip()
         article_type = check_title_type(title)
@@ -360,16 +404,14 @@ def get_nhandan():
                     intro = soup.find('div', class_='article__sapo').text
                     content = soup.find('div', class_='article__body').text
                     insert_db(website, link, title, content, date_content, article_type, intro)
-                    count_non_none_type += 1
-                    log_content = f" {count_non_none_type}: {title} (Article Type: {article_type})"
-                    save_links_to_file(f'{log_file_base_name}_{current_time}.txt', [log_content])
-
             except Exception as e:
                 print(e)
         else:
             count_none_type += 1
             log_content = f" {count_none_type}: {title}"
-            save_links_to_file(f'{log_file_base_name}_{current_time}.txt', [log_content])
+            none_type_links.append(log_content)  # Lưu liên kết vào danh sách
+
+    save_none_type_links_to_file(log_file_base_name, none_type_links)
 
 
 
@@ -396,8 +438,8 @@ def insert_db(website, link, title, content, date_content,article_type, article_
 #get_tienphong()
 #get_vnexpress()
 #article_type = check_title_type("Hỗ trợ nông dân chuyển đổi số, ‘chuyến tàu’ không thể lỡ")
-#run_with_error_logging(get_vietnamnet, "get_vietnamnet")
-run_with_error_logging(get_nhandan, "get_nhandan")
+run_with_error_logging(get_vietnamnet, "get_vietnamnet")
+#run_with_error_logging(get_nhandan, "get_nhandan")
 #del_duplicate(now)
 # 1 ngay thi chay 2 lan ham get_nongnghiep_vn
 # neu article_link da ton tai thi khong insert vao db
