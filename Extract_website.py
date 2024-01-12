@@ -435,12 +435,18 @@ def insert_db(website, link, title, content, date_content,article_type, article_
 #get_thanhnien_vn()
 #get_tuoitre_vn()
 #get_dantri_vn()
-#get_tienphong()
-#get_vnexpress()
-#article_type = check_title_type("Hỗ trợ nông dân chuyển đổi số, ‘chuyến tàu’ không thể lỡ")
+
+run_with_error_logging(get_nongnghiep_vn, "get_nongnghiep_vn")
+run_with_error_logging(get_thanhnien_vn, "get_thanhnien_vn")
+run_with_error_logging(get_tuoitre_vn, "get_tuoitre_vn")
+run_with_error_logging(get_dantri_vn, "get_dantri_vn")
+run_with_error_logging(get_tienphong, "get_tienphong")
+run_with_error_logging(get_vnexpress, "get_vnexpress")
 run_with_error_logging(get_vietnamnet, "get_vietnamnet")
-#run_with_error_logging(get_nhandan, "get_nhandan")
-#del_duplicate(now)
+run_with_error_logging(get_nhandan, "get_nhandan")
+#article_type = check_title_type("Hỗ trợ nông dân chuyển đổi số, ‘chuyến tàu’ không thể lỡ")
+
+del_duplicate(now)
 # 1 ngay thi chay 2 lan ham get_nongnghiep_vn
 # neu article_link da ton tai thi khong insert vao db
 
