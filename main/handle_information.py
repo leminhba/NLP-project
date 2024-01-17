@@ -363,7 +363,7 @@ def find_sections(splitter, text):
     return sections
 
 # Hàm tìm kiếm và in ra tất cả mục thỏa mãn tiêu chí
-def found_sections(sections, matches):
+def is_found_sections(sections, matches):
     found = False
     for section in sections:
         section_head = section.splitlines()[0].lower()
@@ -372,14 +372,18 @@ def found_sections(sections, matches):
     return found
 
 def load_keywords_from_excel(file_path):
-    filepath = os.path.abspath(file_path)
-    df = pd.read_excel(file_path, usecols=[0])
-    return set(df.iloc[:, 0].tolist())
+    if file_path:
+        filepath = os.path.abspath(file_path)
+        df = pd.read_excel(file_path, usecols=[0])
+        return set(df.iloc[:, 0].tolist())
+    else: return set()
 
 def classify_handle_section(id_file, filename, report_unit, area_id, year, content, dict_general_keywords,
-                            dict_specific_keywords, session_id, command_api, api_info, type_extract, split_sentence):
+                            dict_specific_keywords, session_id, command_api, api_info, type_extract, split_sentence, dict_file = None):
     # Gọi hàm để tải keywords
-    keywords = load_keywords_from_excel("dictionary/tu_kho_khan.xls")
+    #keywords = load_keywords_from_excel("dictionary/tu_kho_khan.xls")
+    keywords = load_keywords_from_excel(dict_file)
+    # kiểm tra nếu có keywords thì mới xử lý
     # Biên dịch các biểu thức chính quy một lần
     roman_splitter = re.compile(r"^[IVXLC]+\.", re.MULTILINE)
     string_pattern_map = {
@@ -399,7 +403,7 @@ def classify_handle_section(id_file, filename, report_unit, area_id, year, conte
 
     # Xử lý sections
     sections = find_sections(doc_splitter, content)
-    if type_extract == 'muc_LaMa_123' and not found_sections(sections, matches):
+    if type_extract == 'muc_LaMa_123' and not is_found_sections(sections, matches):
         sections = find_sections(roman_splitter, content)
 
     source_session = int(time.strftime("%Y%m%d%H%M%S"))
