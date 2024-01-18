@@ -1,70 +1,32 @@
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-from IPython.display import HTML
+import re
 import pandas as pd
 
-def highlight_keywords(query, text, keywords):
-    highlighted_text = text
-    for keyword in keywords:
-        highlighted_text = highlighted_text.replace(keyword, f"<span style='color:red'>{keyword}</span>")
-    return highlighted_text
+# Đoạn văn cần trích xuất
+text = """Điều 1. Phê duyệt Chiến lược phát triển nông nghiệp và nông thôn bền vững giai đoạn 2021 - 2030, tầm nhìn đến năm 2050 (sau đây viết tắt là Chiến lược), với những nội dung chủ yếu sau:
+I. QUAN ĐIỂM PHÁT TRIỂN
+1. Nông nghiệp, nông dân, nông thôn có vị trí chiến lược trong sự nghiệp công nghiệp hoá, hiện đại hoá, xây dựng và bảo vệ tổ quốc; gìn giữ, phát huy bản sắc văn hóa dân tộc và bảo vệ môi trường sinh thái. Nông nghiệp là lợi thế, nền tảng bền vững của quốc gia. Nông thôn là địa bàn phát triển kinh tế quan trọng, là không gian chính gắn với tài nguyên thiên nhiên, nền tảng văn hóa, xã hội, đảm bảo an ninh, quốc phòng của đất nước. Nông dân là lực lượng lao động và nguồn tài nguyên con người quan trọng. Các vấn đề nông nghiệp, nông dân, nông thôn phải được giải quyết đồng bộ, gắn với quá trình đẩy mạnh công nghiệp hoá, hiện đại hoá đất nước.
+2. Phát triển nông nghiệp hiệu quả, bền vững về kinh tế - xã hội - môi trường. Phát huy lợi thế, hiệu quả các nguồn lực (tài nguyên đất, nước, không khí, con người, truyền thống lịch sử, văn hóa) và khoa học công nghệ, đổi mới sáng tạo. Chuyển từ tư duy sản xuất nông nghiệp sang tư duy kinh tế nông nghiệp, sản xuất sản phẩm có giá trị cao, đa dạng theo chuỗi giá trị phù hợp với yêu cầu của thị trường, tích hợp các giá trị văn hóa, xã hội và môi trường vào sản phẩm. Sản xuất nông nghiệp có trách nhiệm, hiện đại, hiệu quả và bền vững; phát triển nông nghiệp sinh thái, hữu cơ, tuần hoàn, phát thải các-bon thấp, thân thiện với môi trường và thích ứng với biến đổi khí hậu.
+3. Xây dựng nông thôn văn minh, có cơ sở hạ tầng và dịch vụ đồng bộ, hiện đại, đời sống cơ bản có chất lượng tiến gần đô thị; bảo tồn và phát huy truyền thống văn hóa tốt đẹp, an ninh trật tự được giữ vững; phát triển môi trường, cảnh quan xanh, sạch, đẹp. Phát triển kinh tế nông thôn đa dạng, chủ động tạo sinh kế nông thôn từ hoạt động phi nông nghiệp, tạo việc làm chính thức, thu hẹp khoảng cách thu nhập giữa nông thôn, thành thị và giảm di cư lao động ra các thành phố lớn. Xây dựng nông thôn mới trên cơ sở phát huy lợi thế, tiềm năng, phù hợp với từng vùng miền, gắn kết chặt chẽ với quá trình đô thị hóa, bảo đảm thực chất, đi vào chiều sâu, hiệu quả, bền vững; tập trung xây dựng nông thôn mới cấp thôn bản ở những nơi đặc biệt khó khăn, vùng đồng bào dân tộc thiểu số và miền núi."""
 
-def extract_top_keywords(query, n=3):
-    # Initialize the TF-IDF vectorizer
-    vectorizer = TfidfVectorizer()
+# Sử dụng regex để trích xuất nội dung vào các cột
+dieu_pattern = r"Điều (\d+)\."
+ma_muc_pattern = r"^(?:[IVX]+)\."
+muc_1_pattern = r"\d+\."
 
-    # Fit and transform the query
-    query_tfidf = vectorizer.fit_transform([query])
+dieu_match = re.search(dieu_pattern, text)
+ma_muc_match = re.search(ma_muc_pattern, text)
+muc_1_matches = re.finditer(muc_1_pattern, text)
 
-    # Get feature names and their corresponding TF-IDF values
-    feature_names = vectorizer.get_feature_names_out()
-    tfidf_values = query_tfidf.data
+dieu_content = dieu_match.group(0) if dieu_match else ""
+ma_muc_content = ma_muc_match.group(0) if ma_muc_match else ""
+muc_1_contents = [match.group(0).strip() for match in muc_1_matches]
 
-    # Sort feature names based on TF-IDF values
-    sorted_indices = tfidf_values.argsort()[-n:][::-1]
-    top_keywords = [feature_names[i] for i in sorted_indices]
+# Tạo DataFrame pandas
+data = {"Điều": [dieu_content] * len(muc_1_contents),
+        "Mục La Mã": [ma_muc_content] * len(muc_1_contents),
+        "Mục số thường": muc_1_contents}
 
-    return top_keywords
+df = pd.DataFrame(data)
 
-def find_similar_questions_tfidf(query, question_list):
-    # Initialize the TF-IDF vectorizer
-    vectorizer = TfidfVectorizer()
-
-    # Fit and transform the corpus (including the query)
-    corpus = [query] + question_list
-    tfidf_matrix = vectorizer.fit_transform(corpus)
-
-    # Calculate cosine similarity between the query and each question
-    similarity_scores = cosine_similarity(tfidf_matrix[0], tfidf_matrix[1:])[0]
-
-    # Create a DataFrame to store results
-    result_df = pd.DataFrame({'Question': question_list, 'Similarity Score': similarity_scores})
-
-    # Sort DataFrame by Similarity Score in descending order
-    result_df = result_df.sort_values(by='Similarity Score', ascending=False).reset_index(drop=True)
-
-    # Extract and display the top 3 keywords in the query
-    top_keywords = extract_top_keywords(query, n=3)
-    print(f"Top 3 Keywords in Query: {', '.join(top_keywords)}")
-
-    # Highlight keywords in the top matching question
-    top_question = result_df.iloc[0]['Question']
-    highlighted_text = highlight_keywords(query, top_question, top_keywords)
-
-    # Display the highlighted text
-    display(HTML(f"<strong>Query:</strong> {query}<br><strong>Top Matching Question:</strong> {highlighted_text}"))
-
-    return result_df
-
-# Example usage
-query = "How to use machine learning for image recognition?"
-question_list = [
-    "What are some applications of machine learning?",
-    "Can you explain the process of image recognition using machine learning?",
-    "How does deep learning contribute to image recognition?",
-    "What are the best practices for training a machine learning model for image recognition?"
-]
-
-result_df = find_similar_questions_tfidf(query, question_list)
-print("Similarity Results:")
-print(result_df)
+# In bảng
+print(df)
