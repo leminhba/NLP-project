@@ -9,7 +9,7 @@ import os
 import math
 import sys
 import re
-from main_model.util.general_normalize import clean_prefix_and_whitespace
+from main_model.util.general_normalize import clean_prefix_and_whitespace, truncate_string
 from sqlalchemy.dialects.mssql import NVARCHAR, INTEGER, FLOAT
 import sqlalchemy.dialects.mysql
 
@@ -410,23 +410,42 @@ def classify_handle_section(id_file, filename, report_unit, area_id, year, conte
     list_result = []
     for section in sections:
         section_head = section.splitlines()[0]
-
-        matching_sentences = any(k in section for k in keywords)
-        # Chỉ xử lý nếu có từ khóa phù hợp
-        if matching_sentences:
-            if not matches or any(x in section_head.lower() for x in matches):
-                result_data = {
-                    'id_file': id_file, 'filename': filename, 'report_unit': report_unit,
-                    'area_id': area_id, 'year': year, 'topic_1': '', 'keywords_topic_1': '',
-                    'topic_2': '', 'keywords_topic_2': '', 'sentence_contain_keywords': section_head,
-                    'paragraph_contain_keywords': section, 'session_id': session_id
-                }
-                if split_sentence == "0":
-                    list_result.append(result_data)
-                else:
-                    list_result.extend(classify_handle_paragraph(id_file, filename, report_unit, area_id, year, section,
-                                                                 dict_general_keywords, dict_specific_keywords,
-                                                                 session_id, source_session, keywords))
+        temp_section_head = truncate_string(section_head, 150).lower()
+        #nếu keywords là rỗng thì xử lý tất cả các mục
+        if not keywords:
+            if not matches or any(x in temp_section_head for x in matches):
+                if len(sections) > 100:
+                    result_data = {
+                        'id_file': id_file, 'filename': filename, 'report_unit': report_unit,
+                        'area_id': area_id, 'year': year, 'topic_1': '', 'keywords_topic_1': '',
+                        'topic_2': '', 'keywords_topic_2': '', 'sentence_contain_keywords': section_head,
+                        'paragraph_contain_keywords': section, 'session_id': session_id
+                    }
+                    if split_sentence == "0":
+                        list_result.append(result_data)
+                    else:
+                        list_result.extend(
+                            classify_handle_paragraph(id_file, filename, report_unit, area_id, year, section,
+                                                      dict_general_keywords, dict_specific_keywords,
+                                                      session_id, source_session, keywords))
+        else:
+            matching_sentences = any(k in section for k in keywords)
+            # Chỉ xử lý nếu có từ khóa phù hợp
+            if matching_sentences:
+                if not matches or any(x in temp_section_head for x in matches):
+                    result_data = {
+                        'id_file': id_file, 'filename': filename, 'report_unit': report_unit,
+                        'area_id': area_id, 'year': year, 'topic_1': '', 'keywords_topic_1': '',
+                        'topic_2': '', 'keywords_topic_2': '', 'sentence_contain_keywords': section_head,
+                        'paragraph_contain_keywords': section, 'session_id': session_id
+                    }
+                    if split_sentence == "0":
+                        list_result.append(result_data)
+                    else:
+                        list_result.extend(
+                            classify_handle_paragraph(id_file, filename, report_unit, area_id, year, section,
+                                                      dict_general_keywords, dict_specific_keywords,
+                                                      session_id, source_session, keywords))
 
     return list_result
 
@@ -441,16 +460,24 @@ def classify_handle_paragraph(id_file, filename, report_unit, area_id, year, con
         list_sents = nltk.tokenize.sent_tokenize(para_i)
         for sent in list_sents: # tach theo cau
             #neu cau co do dai lon hon 50 ky tu thi moi xu ly
-            if len(sent) > 50:
+            if len(sent) > 70:
                 sent_lower = sent.lower()
-                matching_sentences = any(k in sent_lower for k in keywords)
-                # Chỉ xử lý nếu có từ khóa phù hợp
-                if matching_sentences:
+                if not keywords:
+                    # Kiểm tra nếu section không chứa số thì loại bỏ
+                    #if any(char.isdigit() for char in sent):
                     list_paras_sents.append({'sent': sent, 'para': para_i})
                 else:
-                    # If there are no matching sentences, write "sent" to the invalid keywords file
-                    with open(invalid_keywords_file_path, 'a', encoding='utf-8') as invalid_keywords_file:
-                        invalid_keywords_file.write(sent + '\n')
+                    matching_sentences = any(k in sent_lower for k in keywords)
+                    # Chỉ xử lý nếu có từ khóa phù hợp
+                    if matching_sentences:
+                        list_paras_sents.append({'sent': sent, 'para': para_i})
+                    else:
+                        # If there are no matching sentences, write "sent" to the invalid keywords file
+                        with open(invalid_keywords_file_path, 'a', encoding='utf-8') as invalid_keywords_file:
+                            invalid_keywords_file.write(sent + '\n')
+
+
+
 
     for element_sent in list_paras_sents:
         sent_i = clean_prefix_and_whitespace(element_sent['sent'])

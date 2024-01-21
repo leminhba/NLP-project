@@ -6,10 +6,9 @@ import string
 import requests
 import time
 import datetime
-import textract
+#import textract
 import codecs
 import platform
-import camelot
 import pythoncom
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.converter import TextConverter
@@ -156,10 +155,10 @@ def read_doc_file(path_file):
             result = None
     elif 'mac' in platform_os:
         # read in macOS
-        text = textract.process(path_file)
-        text = codecs.decode(text, encoding='utf-8')
-        list_paras = text.split('\n\n')
-        result = '\n'.join(fix_each_pdf_paragraph(para) for para in list_paras)
+        #text = textract.process(path_file)
+        #text = codecs.decode(text, encoding='utf-8')
+        #list_paras = text.split('\n\n')
+        #result = '\n'.join(fix_each_pdf_paragraph(para) for para in list_paras)
         result = remove_number_page(result)
     return result
 
@@ -416,11 +415,12 @@ def read_tables_docx_file(path_file):
     return result
 
 
-#bo sung them doc tu file DOC
+
+'''
 def read_tables_pdf_file(path_pdf):
     result = camelot.read_pdf(path_pdf,pages='all')
     return result
-
+'''
 
 def extract_table_from_file(path_file):
     '''
