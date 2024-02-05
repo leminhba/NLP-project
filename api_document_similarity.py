@@ -139,16 +139,6 @@ def main():
             #print(doc_score, df_extract['sentence_contain_keywords'][doc_position])
         return json.dumps(data, ensure_ascii=False)
 
-@app.route("/extract_info", methods=['GET'])
-def extract_info():
-    if 'command_api' in request.args:
-        command_api = request.args['command_api']
-        # try:
-        data = main_process_info(command_api)
-        return data
-    else:
-        return "Error: No command_api field provided. Please specify an command_api."
-
 
 @app.route("/extract", methods=['GET'])
 def extract():
@@ -157,8 +147,11 @@ def extract():
         type_exp = request.args['type_export']
         type_ext = request.args['type_extract']
         split_sent = request.args['split_sentence']
-        # try:
-        data = main_process(command_api, number_skipping_words=0, type_export=type_exp, type_extract=type_ext, split_sentence=split_sent)
+        keywords_string = None
+        if 'keywords_string' in request.args:
+            keywords_string = request.args['keywords_string']
+        data = main_process(command_api, number_skipping_words=0, type_export=type_exp, type_extract=type_ext,
+                            split_sentence=split_sent, keywords_string=keywords_string, predict=None)
         return data
     else:
         return "Error: No command_api field provided. Please specify an command_api."

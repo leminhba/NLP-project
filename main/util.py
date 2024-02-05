@@ -19,6 +19,7 @@ from io import StringIO
 EXTENSION_DOC = 'doc'
 EXTENSION_DOCX = 'docx'
 EXTENSION_PDF = 'pdf'
+EXTENSION_TXT = 'txt'
 
 print(f"platform = {platform.platform().lower()}")
 
