@@ -10,11 +10,14 @@ def extract():
         type_exp = request.args['type_export']
         type_ext = request.args['type_extract']
         split_sent = request.args['split_sentence']
+        predict = None
+        if 'predict' in request.args:
+            predict = request.args['predict']
         keywords_string = None
         if 'keywords_string' in request.args:
             keywords_string = request.args['keywords_string']
         data = main_process(command_api, number_skipping_words=0, type_export=type_exp, type_extract=type_ext,
-                            split_sentence=split_sent, keywords_string=keywords_string, predict=None)
+                            split_sentence=split_sent, keywords_string=keywords_string, predict=predict)
         return data
     else:
         return "Error: No command_api field provided. Please specify an command_api."

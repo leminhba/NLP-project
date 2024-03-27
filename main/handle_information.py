@@ -12,11 +12,12 @@ import re
 from main_model.util.general_normalize import clean_prefix_and_whitespace, truncate_string,convert_string_to_dict
 from main_model.model.pipeline import get_predict_classification
 from sqlalchemy.dialects.mssql import NVARCHAR, INTEGER, FLOAT
+from api.clustered_report import clustering_df
 import sqlalchemy.dialects.mysql
 import json
 import nltk
 import ssl
-
+from main.extract_info import *
 try:
     _create_unverified_https_context = ssl._create_unverified_context
 except AttributeError:
@@ -210,7 +211,7 @@ def check_condition_all(keyword, content):
 def classify_handle(id_file, filename, report_unit, area_id, year, content, dict_general_keywords,
                     dict_specific_keywords, session_id):
     list_result = []
-    content = content.lower()
+    #content = content.lower()
     list_paragraphs = content.split('\n')
     list_paras_sents = []
     for para_i in list_paragraphs:
@@ -315,10 +316,6 @@ def classify_handle_2section(id_file, filename, report_unit, area_id, year, cont
     return list_result
 '''
 
-def find_sections(splitter, text):
-    starts = [match.span()[0] for match in splitter.finditer(text)] + [len(text)]
-    sections = [text[starts[idx]:starts[idx+1]] for idx in range(len(starts)-1)]
-    return sections
 
 # Hàm tìm kiếm và in ra tất cả mục thỏa mãn tiêu chí
 def is_found_sections(sections, matches):
@@ -336,32 +333,31 @@ def load_keywords_from_excel(file_path):
         return set(df.iloc[:, 0].tolist())
     else: return set()
 
+
+
 def classify_handle_index(id_file, filename, report_unit, area_id, year, content, session_id, command_api, api_info, type_extract, split_sentence, dict_file = None):
 
     roman_splitter = re.compile(r"^[IVXLC]+\.", re.MULTILINE)
-    string_pattern_map = {
-        'muc_123': r"^(?:\d+)\.",
-        'muc_LaMa': r"^(?:[IVX]+)\.",
-        'muc_LaMa_123': r"^(?:\d+)\.",
-        'default': r"^(?:Điều\ )\d+\.?"
-    }
-    pattern = string_pattern_map.get(type_extract, string_pattern_map['default'])
-    doc_splitter = re.compile(pattern, re.MULTILINE)
+    chapter_splitter = re.compile(r"^Phần [IV]", re.MULTILINE)
+    numeric_splitter = re.compile(r"^\d+\.", re.MULTILINE)
+    found = False
 
-    # Xử lý sections
-    sections = find_sections(roman_splitter, content)
+    sections, found = extract_2section(roman_splitter, numeric_splitter, content)
+    if found:
+        source_session = int(time.strftime("%Y%m%d%H%M%S"))
+        list_result = []
+        for section in sections:
+            section_head = section[0]
+            section_content = section[1]
+            temp_section_head = truncate_string(section_head, 150)
+            list_result.append({
+                'id_file': id_file, 'filename': filename, 'report_unit': report_unit,
+                'area_id': area_id, 'year': year, 'topic_1': '', 'keywords_topic_1': '',
+                'topic_2': '', 'keywords_topic_2': '', 'sentence_contain_keywords': temp_section_head,
+                'paragraph_contain_keywords': section_content, 'session_id': session_id})
+        return list_result
 
-    source_session = int(time.strftime("%Y%m%d%H%M%S"))
-    list_result = []
-    for section in sections:
-        section_head = section.splitlines()[0]
-        temp_section_head = truncate_string(section_head, 150)
-        list_result.append({
-        'id_file': id_file, 'filename': filename, 'report_unit': report_unit,
-        'area_id': area_id, 'year': year, 'topic_1': '', 'keywords_topic_1': '',
-        'topic_2': '', 'keywords_topic_2': '', 'sentence_contain_keywords': temp_section_head,
-        'paragraph_contain_keywords': section_head, 'session_id': session_id})
-    return list_result
+
 
 
 def classify_handle_section(id_file, filename, report_unit, area_id, year, content, dict_general_keywords,
@@ -483,7 +479,7 @@ def classify_handle_paragraph(id_file, filename, report_unit, area_id, year, con
     for para_i in list_paragraphs: # tach theo dau xuong dong
         list_sents = nltk.tokenize.sent_tokenize(para_i)
         for sent in list_sents: # tach theo cau
-            #neu cau co do dai lon hon 50 ky tu thi moi xu ly
+            #neu cau co do dai lon hon 70 ky tu thi moi xu ly
             if len(sent) > 70:
                 sent_lower = sent.lower()
                 if not keywords:
@@ -799,11 +795,11 @@ def main_process(command_api, number_skipping_words=0, type_export='sql_server',
     # 3. SAVE RESULT
     df = pd.DataFrame(result_list)
 
-    # group duplicate sent, keyword_topic
-    print(f"Start Processing duplicate results...")
-    df = group_result_df(df, column_concat='keywords_topic_1')
-    print(f"Finish processing duplicate results...")
-
+    if type_extract != 'index':
+        # group duplicate sent, keyword_topic
+        print(f"Start Processing duplicate results...")
+        df = group_result_df(df, column_concat='keywords_topic_1')
+        print(f"Finish processing duplicate results...")
 
     filename = 'export.xlsx'
     if type_export == 'excel':
@@ -815,8 +811,10 @@ def main_process(command_api, number_skipping_words=0, type_export='sql_server',
         df_excel = df.loc[:,
                    ['report_unit', 'paragraph_contain_keywords', 'sentence_contain_keywords', 'topic_1', 'topic_2']]
         #goi sang cluster
-        if not predict:
+        if predict == "supervised":
             df_predict = get_predict_classification('model_classification_svm_1704897788',df_excel)
+        elif predict == "unsupervised":
+            df_predict = clustering_df(df_excel)
     else:
         # df that has output session information
         df_session = pd.DataFrame([{"created_by": api_info,  #sua thanh ten user
@@ -858,12 +856,17 @@ def main_process(command_api, number_skipping_words=0, type_export='sql_server',
             df_index = df.loc[:,
                        ['report_unit', 'sentence_contain_keywords', 'topic_1']]
             return json.dumps(df_index.to_dict('records'), ensure_ascii=False)
-        elif type_extract == 'keyword_in_sectionhead':
+        elif type_extract == 'keyword_in_sectionhead' or type_extract == 'keyword':
             df_index = df.loc[:,
                        ['report_unit', 'paragraph_contain_keywords', 'sentence_contain_keywords', 'topic_1']]
             return json.dumps(df_index.to_dict('records'), ensure_ascii=False)
+        else:
+            if predict == "supervised":
+                return json.dumps(df_predict.to_dict('records'), ensure_ascii=False)
+            else :
+                return json.dumps(df_predict["clusters"], ensure_ascii=False)
         #tra ra man hinh
-        return json.dumps(df_predict.to_dict('records'), ensure_ascii=False)
+
     else:
         return session_id
 

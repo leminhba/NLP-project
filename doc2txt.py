@@ -2,7 +2,7 @@ import main.util as util
 import os
 
 
-def extract_and_write_txt(docx_path):
+def extract_and_write_txt2(docx_path):
     """
     Extracts text from a DOCX file and writes it to a TXT file in the same directory.
     The TXT file will only be created if it does not already exist.
@@ -39,12 +39,39 @@ def extract_and_write_txt(docx_path):
             return None, message
 
 
+def extract_and_write_txt(directory_path):
+    """
+    Extracts text from DOCX, DOC, or PDF files in a directory and writes it to TXT files.
+    Does not convert if a TXT file already exists.
+
+    Parameters:
+    - directory_path: str. The path to the directory containing the files.
+
+    Returns:
+    - None
+    """
+    for root, dirs, files in os.walk(directory_path):
+        for file in files:
+            if file.lower().endswith(('.docx', '.pdf', '.doc')):
+                base_name = os.path.splitext(file)[0]
+                txt_file_name = f"{base_name}.txt"
+                txt_file_path = os.path.join(root, txt_file_name)
+
+                # Kiểm tra nếu file TXT đã tồn tại
+                if not os.path.exists(txt_file_path):
+                    file_path = os.path.join(root, file)
+                    text, message = util.extract_text_from_file(file_path)
+                    if text:
+                        with open(txt_file_path, 'w', encoding='utf-8') as txt_file:
+                            txt_file.write(text)
+                            print(f"Content written to {txt_file_path}")
+                else:
+                    print(f"File {txt_file_name} already exists. Skipping conversion.")
+
+
+
 # Đường dẫn tới file .docx
-path_file_temp = 'D:/Laptrinh/GSDG/GSDGNganh/MIC/Upload/Temp/2024/202402031040-202401311201-BC GIAO BAN BO T1.2024-29.01.2024_Final.docx'
+path_file_temp = 'D:/Laptrinh/GSDG/GSDGNganh/MIC/Upload/Temp/2024'
 
 # Gọi hàm và in ra nội dung trả về
-content, message = extract_and_write_txt(path_file_temp)
-if content:
-    print("Content retrieved:")
-    print(content)
-    print(message)
+extract_and_write_txt(path_file_temp)

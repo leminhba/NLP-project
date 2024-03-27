@@ -1,9 +1,7 @@
 from flask import Blueprint, request
 from rank_bm25 import BM25Okapi
 import urllib.parse
-import sentence_transformers
-import sentence_transformers.util
-#from sentence_transformers import SentenceTransformer, util
+
 from main_model.model.pipeline import *
 from main_model.config.read_config import *
 from main_model.util.general_normalize import _clean_text_remove_token, remove_under_score
@@ -12,7 +10,11 @@ from main.handle_information import *
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 import pandas as pd
-model = sentence_transformers.SentenceTransformer('distiluse-base-multilingual-cased-v2')
+from langchain.vectorstores.chroma import Chroma
+from langchain_community.document_loaders import DataFrameLoader
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings.sentence_transformer import (SentenceTransformerEmbeddings,)
+from langchain_community.retrievers import BM25Retriever
 
 
 # Biến lưu câu hỏi và ngữ cảnh trước đó
@@ -104,48 +106,63 @@ def pre_process_table(df, content_col, id_col):
 
 def load_df():
 
-    if request.args.get('t') == "1":  # lay danh sach chi so
+    if request.args.get('t') == "chi_so":  # lay danh sach chi so
         db = config['test_db2']
         sp = """EXEC list_indicator """
         df = read_data_type_db2(db, sp)
         model_filename = "bm25_ind.joblib"
         return pre_process_table(df, 'ind_name_vn', 'ind_id'), model_filename
-    elif request.args.get('t') == "3":  # hoi dap
+    elif request.args.get('t') == "hoi_dap":  # hoi dap
         db = config['test_db2']
         sp = """EXEC list_qa """
         df = read_data_type_db2(db, sp)
         model_filename = "bm25_qa.joblib"
         return pre_process_table(df, 'question', 'qa_id'), model_filename
+    elif request.args.get('t') == "quy_hoach":  # hoi dap
+        db = config['test_db2']
+        #sp = "DocUpload_by_cat"
+        params = ('2')
+        sp = """SET NOCOUNT ON; EXEC DocUpload_by_cat '{0}'; """.format(params)
+        df = read_data_type_db2(db, sp)
+        #df = exec_sp_select(db, sp, params)
+        model_filename = "bm25_qh.joblib"
+        return pre_process_table(df, 'Files', 'id', 'Title'), model_filename
     else:  # lay theo session
         db = config['test_db']
         params = ('20230502_22-17-06')
         sp = """SET NOCOUNT ON; EXEC temp_output_by_session_id '{0}'; """.format(params)
         df = read_data_type_db2(db, sp)
         model_filename = "bm25_session.joblib"
-        return pre_process_df2(df)
+        return pre_process_df2(df), model_filename
 
 
 def bert_simi(question):
-    global loaded_df
-    # Kiểm tra xem đã load dữ liệu chưa
-    if loaded_df is None:
-        # Nếu chưa load, thực hiện load và lưu vào biến toàn cục
-        loaded_df = load_df()
-    embedding = model.encode(loaded_df['clean_content'].tolist(), convert_to_tensor=True)
-    embedding_query = model.encode(question, convert_to_tensor=True)
-    # Calculate cosine similarity between the user query and all documents
-    similarities = sentence_transformers.util.cos_sim(embedding_query, embedding).cpu().numpy()
+    #model_name = "BAAI/bge-small-en-v1.5"
+    #model_name = "keepitreal/vietnamese-sbert"
+    model_name = "intfloat/multilingual-e5-small"
+    encode_kwargs = {'normalize_embeddings': True}  # set True to compute cosine similarity
+    bge_embeddings = HuggingFaceEmbeddings(
+        model_name=model_name,
+        model_kwargs={'device': 'cuda'},
+        encode_kwargs=encode_kwargs
+    )
 
-    df = pd.DataFrame(similarities.T, columns=['score'])
-    df = df.join(loaded_df['sentence_contain_keywords'])
-    # cắt các dòng có cột nhỏ hơn 0.5
-    df = df[df['score'] > 0.5]
-    # sắp xếp theo score giảm dần
-    df = df.sort_values(by=['score'], ascending=False)
-    # reset index sau khi sắp xếp để có giá trị index liên tục
-    df = df.reset_index(drop=True)
-    return json.dumps(df.to_dict('records'), ensure_ascii=False)
 
+    # create the open-source embedding function
+    embedding_function = SentenceTransformerEmbeddings(model_name=model_name)
+    collection_name = urllib.parse.unquote(request.args.get('t'))
+    # load it into Chroma
+    persist_directory = "./chroma_db/" + collection_name
+    vectorstore = Chroma(persist_directory=persist_directory,
+                             embedding_function=embedding_function)
+
+
+    docs = vectorstore.similarity_search_with_score(question, k=10)
+
+    # Trả về danh sách các dictionary
+    documents_and_scores = [{'sentence_contain_keywords': document.page_content, 'score': score, 'id': document.metadata['id']} for document, score in docs]
+
+    return json.dumps(documents_and_scores, ensure_ascii=False)
 @doc_similarity_blueprint.route('/similarity', methods=['GET'])
 
 def simi():
@@ -164,3 +181,33 @@ def top_keywords():
     question = urllib.parse.unquote(request.args.get('kw'))
     question = _clean_text_remove_token(question)
     return json.dumps(extract_top_keywords(question, n=5), ensure_ascii=False)
+
+
+
+def create_vectordb():
+    collection_name = urllib.parse.unquote(request.args.get('t'))
+    model_name = "keepitreal/vietnamese-sbert"
+    encode_kwargs = {'normalize_embeddings': True}  # set True to compute cosine similarity
+    bge_embeddings = HuggingFaceEmbeddings(
+        model_name=model_name,
+        model_kwargs={'device': 'cuda'},
+        encode_kwargs=encode_kwargs
+    )
+
+    loaded_df, file = load_df()
+    df = loaded_df[['id', 'sentence_contain_keywords', 'clean_content', 'title']]
+    loader = DataFrameLoader(df, page_content_column="sentence_contain_keywords")
+    documents = loader.load()
+
+    # create the open-source embedding function
+    embedding_function = SentenceTransformerEmbeddings(model_name=model_name)
+    # load it into Chroma
+    persist_directory = "./chroma_db/" + collection_name
+    # Kiểm tra xem thư mục tồn tại hay không
+    if os.path.exists(persist_directory):
+        # Nếu tồn tại, xóa nó đi
+        shutil.rmtree(persist_directory)
+    vectorstore = Chroma.from_documents(documents, persist_directory=persist_directory,
+                             embedding=embedding_function)
+
+    return "Đã xử lý thành công"
